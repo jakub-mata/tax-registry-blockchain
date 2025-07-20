@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Transactions;
 
 namespace tax_registry_blockchain;
 
@@ -11,7 +13,7 @@ public enum MiningProof
 {
     ProofOfWork,
 }
-public class Blockchain<T> where T : IRewarding
+public class Blockchain<T> where T : IRewarding, IAddressable
 {
     public int Difficulty { get; }
     private readonly IPayloadFactory<T> payloadFactory;
@@ -40,6 +42,17 @@ public class Blockchain<T> where T : IRewarding
     public Block<T> GetLatestBlock()
     {
         return Chain[^1];
+    }
+
+    public float GetBalanceOfAddress(string address)
+    {
+        return Chain.Aggregate(0f, (curr, nextBlock) =>
+        {
+            if (nextBlock.Payload == null)
+                return curr;
+            return curr + nextBlock.Payload.GetTotalByAddress(address);
+        }
+        );
     }
 
     /// <summary>

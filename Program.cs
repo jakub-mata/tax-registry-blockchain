@@ -31,5 +31,6 @@ class Program
                 )
         ));
         taxBlockchain.Head();
+        Console.WriteLine($"Total of 'Alice': {taxBlockchain.GetBalanceOfAddress("Alice")}");
     }
 }

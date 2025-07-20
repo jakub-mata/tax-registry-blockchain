@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 
 namespace tax_registry_blockchain;
 
-public class Block<PayloadT> where PayloadT : IRewarding
+public class Block<PayloadT> where PayloadT : IRewarding, IAddressable
 {
     public Block(PayloadT load)
     {

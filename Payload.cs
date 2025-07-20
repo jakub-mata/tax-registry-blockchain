@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Transactions;
 
 namespace tax_registry_blockchain;
 
@@ -28,7 +29,12 @@ public interface IRewarding
     public void MakeAReward(string from, string to, float reward);
 }
 
-public class TaxPayload : IRewarding
+public interface IAddressable
+{
+    public float GetTotalByAddress(string address);
+}
+
+public class TaxPayload : IRewarding, IAddressable
 {
     public List<TaxTransaction> Transactions { get; set; }
 
@@ -70,6 +76,18 @@ public class TaxPayload : IRewarding
             Amount = reward,
             TaxType = TaxTransaction.TType.Reward,
         });
+    }
+
+    public float GetTotalByAddress(string address)
+    {
+        return Transactions.Aggregate(0f, (curr, nextTrans) =>
+        {
+            if (nextTrans.From == address)
+                curr -= nextTrans.Amount;
+            if (nextTrans.To == address)
+                curr += nextTrans.Amount;
+            return curr;
+        });      
     }
 
     public override string ToString()
