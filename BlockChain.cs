@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace tax_registry_blockchain;
@@ -9,18 +11,26 @@ public enum MiningProof
 {
     ProofOfWork,
 }
-public class Blockchain<T>
+public class Blockchain<T> where T : IRewarding
 {
     public int Difficulty { get; }
+    private readonly IPayloadFactory<T> payloadFactory;
+    private readonly MiningProof proofType;
+    private List<T> pendingTransactions;
+    public float Reward { get; init; }
     private static readonly JsonSerializerOptions jsonOptions = new()
     {
         WriteIndented = true
     };
     public List<Block<T>> Chain { get; set; }
-    public Blockchain(int difficulty)
+    public Blockchain(int difficulty, float reward, IPayloadFactory<T> factory, MiningProof prf)
     {
         Chain = [CreateGenesisBlock()];
+        proofType = prf;
         Difficulty = difficulty;
+        pendingTransactions = [];
+        Reward = reward;
+        payloadFactory = factory;
     }
 
     /// <summary>
@@ -39,11 +49,31 @@ public class Blockchain<T>
     /// <param name="block">The block to be added to the blockchain.</param>
     public void AddBlock(Block<T> block)
     {
-        block.Index = Chain.Count;
         block.PreviousHash = GetLatestBlock().Hash;
         Console.WriteLine("Mining starts...");
         block.MineBlock(Difficulty);
         Chain.Add(block);
+    }
+
+    public void AddTransaction(T transaction)
+    {
+        pendingTransactions.Add(transaction);
+    }
+
+    public void MinePendingTransactions(int blockToMineIndex, string rewardAddress)
+    {
+        Block<T> block = new(pendingTransactions[blockToMineIndex]);
+        AddBlock(block);
+        pendingTransactions.RemoveAt(blockToMineIndex);
+        Console.WriteLine("Block mined successfully. Sending mining reward...");
+        SendMiningReward(null, rewardAddress);
+        Console.WriteLine("Mining reward added to pending successfully.");
+    }
+
+    private void SendMiningReward(string from, string to)
+    {
+        T payload = payloadFactory.CreateReward(from, to, Reward);
+        pendingTransactions.Add(payload);
     }
 
     /// <summary>

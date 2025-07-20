@@ -3,11 +3,10 @@ using System.Security.Cryptography;
 
 namespace tax_registry_blockchain;
 
-public class Block<PayloadT>
+public class Block<PayloadT> where PayloadT : IRewarding
 {
-    public Block(int index, PayloadT load)
+    public Block(PayloadT load)
     {
-        Index = index;
         TimeStamp = new DateTime().ToUniversalTime();
         PreviousHash = [0];
         Nonce = 0;
@@ -17,13 +16,11 @@ public class Block<PayloadT>
 
     public Block()
     {
-        Index = 0;
         TimeStamp = new DateTime().ToUniversalTime();
         PreviousHash = [0];
         Nonce = 0;
         Hash = Digest();
     }
-    public int Index { get; set; }
     public DateTime TimeStamp { get; }
     public byte[] PreviousHash { get; set; }
     public byte[] Hash { get; set; }
@@ -69,10 +66,9 @@ public class Block<PayloadT>
 
     public override string ToString()
     {
-        return Index.ToString()
-            + TimeStamp
-            + PreviousHash
-            + Nonce
+        return TimeStamp.ToString()
+            + PreviousHash.ToString()
+            + Nonce.ToString()
             + (Payload != null ? Payload.ToString() : "");
     }
 }
