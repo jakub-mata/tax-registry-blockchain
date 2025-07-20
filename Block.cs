@@ -1,41 +1,16 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 
 namespace tax_registry_blockchain;
 
-public struct TaxTransaction
+public class Block<PayloadT>
 {
-    public string From { get; set; }
-    public string To { get; set; }
-    public decimal Amount { get; set; }
-    public string TaxType { get; set; }
-    readonly public override string ToString()
-    {
-        return From + To + Amount.ToString() + TaxType;
-    }
-}
-
-public abstract class PayloadType { }
-
-public class TaxPayload : PayloadType
-{
-    public List<TaxTransaction> Transactions { get; set; }
-    override public string ToString()
-    {
-        return Transactions.Aggregate("", (curr, next) => curr + next);
-    }
-}
-
-public class Block
-{
-    public Block(int index, PayloadType load)
+    public Block(int index, PayloadT load)
     {
         Index = index;
         TimeStamp = new DateTime().ToUniversalTime();
         PreviousHash = [0];
-        Nonce = new Random().Next(1000);
+        Nonce = 0;
         Payload = load;
         Hash = Digest();
     }
@@ -45,19 +20,51 @@ public class Block
         Index = 0;
         TimeStamp = new DateTime().ToUniversalTime();
         PreviousHash = [0];
-        Nonce = new Random().Next(1000);
+        Nonce = 0;
         Hash = Digest();
     }
-    public int Index;
-    public readonly DateTime TimeStamp;
-    public byte[] PreviousHash;
-    public byte[] Hash;
-    public int Nonce;
-    public PayloadType Payload;
+    public int Index { get; set; }
+    public DateTime TimeStamp { get; }
+    public byte[] PreviousHash { get; set; }
+    public byte[] Hash { get; set; }
+    private int Nonce { get; set; }
+    public PayloadT Payload { get; set; }
 
     public byte[] Digest()
     {
         return SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(ToString()));
+    }
+
+    /// <summary>
+    /// Method 
+    /// </summary>
+    /// <param name="difficulty"></param>
+    public void MineBlock(int difficulty)
+    {
+        while (!SatisfyCondition(difficulty))
+        {
+            ++Nonce;
+            Hash = Digest();
+        }
+    }
+
+    private bool SatisfyCondition(int difficulty)
+    {
+        int div = difficulty / 2;
+        int residual = difficulty % 2;
+        for (int i = 0; i < div; ++i)
+        {
+            if (Hash[i] != 0x0)
+                return false;
+        }
+        if (residual != 0 && !IsLowerHalfByteNull(Hash[div]))
+            return false;
+        return true;
+    }
+    private static bool IsLowerHalfByteNull(byte b)
+    {
+        byte mask = 0x0F;
+        return (b & mask) == 0x0;
     }
 
     public override string ToString()
@@ -66,14 +73,6 @@ public class Block
             + TimeStamp
             + PreviousHash
             + Nonce
-            + Payload.ToString();
+            + (Payload != null ? Payload.ToString() : "");
     }
-}
-
-// BLOCK IMPLEMENTATIONS
-
-public class TaxBlock : Block
-{
-    public TaxBlock(int index, TaxPayload taxPayload)
-    : base(index, taxPayload) { }
 }

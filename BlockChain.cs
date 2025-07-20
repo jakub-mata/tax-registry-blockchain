@@ -5,23 +5,29 @@ using System.Text.Json;
 
 namespace tax_registry_blockchain;
 
-public abstract class Blockchain<T> where T : Block
+public enum MiningProof
 {
+    ProofOfWork,
+}
+public class Blockchain<T>
+{
+    public int Difficulty { get; }
     private static readonly JsonSerializerOptions jsonOptions = new()
     {
         WriteIndented = true
     };
-    public List<Block> Chain { get; set; }
-    public Blockchain()
+    public List<Block<T>> Chain { get; set; }
+    public Blockchain(int difficulty)
     {
         Chain = [CreateGenesisBlock()];
+        Difficulty = difficulty;
     }
 
     /// <summary>
     /// Returns the last added block within the blockchain.
     /// </summary>
     /// <returns>The last block in the blockchain.</returns>
-    public Block GetLatestBlock()
+    public Block<T> GetLatestBlock()
     {
         return Chain[^1];
     }
@@ -31,11 +37,13 @@ public abstract class Blockchain<T> where T : Block
     /// unknown upon creation of the passed block) and then has to recompute its hash.
     /// </summary>
     /// <param name="block">The block to be added to the blockchain.</param>
-    public void AddBlock(T block)
+    public void AddBlock(Block<T> block)
     {
+        block.Index = Chain.Count;
         block.PreviousHash = GetLatestBlock().Hash;
-        block.Hash = block.Digest();
-        Chain.Add(new Block());
+        Console.WriteLine("Mining starts...");
+        block.MineBlock(Difficulty);
+        Chain.Add(block);
     }
 
     /// <summary>
@@ -78,13 +86,8 @@ public abstract class Blockchain<T> where T : Block
     /// constructor.
     /// </summary>
     /// <returns>The genesis block</returns>
-    protected Block CreateGenesisBlock()
+    protected Block<T> CreateGenesisBlock()
     {
-        return new Block();
+        return new Block<T>();
     }
-}
-
-public class TaxRegistryBlockchain : Blockchain<TaxBlock>
-{
-    
 }
