@@ -60,7 +60,7 @@ public class Blockchain<T> where T : IRewarding, IAddressable
     /// unknown upon creation of the passed block) and then has to recompute its hash.
     /// </summary>
     /// <param name="block">The block to be added to the blockchain.</param>
-    public void AddBlock(Block<T> block)
+    private void AddBlock(Block<T> block)
     {
         block.PreviousHash = GetLatestBlock().Hash;
         Console.WriteLine("Mining starts...");
