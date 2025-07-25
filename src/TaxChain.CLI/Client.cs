@@ -5,8 +5,9 @@ using TaxChain.CLI.commands;
 
 namespace TaxChain.CLI
 {
-    public class CLIClient
+    public static class CLIClient
     {
+        public static Services.DaemonClient clientd = new Services.DaemonClient();
         public static int Run(string[] args)
         {
             var app = new CommandApp();

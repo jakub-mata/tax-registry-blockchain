@@ -13,12 +13,8 @@ namespace TaxChain.CLI.Services
     public class DaemonClient
     {
         private const string PipeName = "TaxChainControlPipe";
-        private readonly IAnsiConsole _console;
 
-        public DaemonClient(IAnsiConsole console)
-        {
-            _console = console;
-        }
+        public DaemonClient() { }
 
         public async Task<bool> IsDaemonRunningAsync()
         {
@@ -26,7 +22,7 @@ namespace TaxChain.CLI.Services
             {
                 using var pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
                 await pipeClient.ConnectAsync(1000); // 1 second timeout
-                
+
                 var request = new ControlRequest { Command = "status" };
                 var response = await SendRequestAsync(pipeClient, request);
                 return response.Success;
@@ -42,22 +38,22 @@ namespace TaxChain.CLI.Services
             try
             {
                 using var pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
-                await pipeClient.ConnectAsync(5000); // 5 second timeout
-                
-                var request = new ControlRequest 
-                { 
-                    Command = command, 
-                    Parameters = parameters 
+                await pipeClient.ConnectAsync(5000);
+
+                var request = new ControlRequest
+                {
+                    Command = command,
+                    Parameters = parameters
                 };
-                
+
                 return await SendRequestAsync(pipeClient, request);
             }
             catch (Exception ex)
             {
-                return new ControlResponse 
-                { 
-                    Success = false, 
-                    Message = $"Failed to connect to daemon: {ex.Message}" 
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Failed to connect to daemon: {ex.Message}"
                 };
             }
         }
@@ -73,7 +69,7 @@ namespace TaxChain.CLI.Services
             var responseJson = await reader.ReadLineAsync();
             if (responseJson != null)
             {
-                return JsonSerializer.Deserialize<ControlResponse>(responseJson) ?? 
+                return JsonSerializer.Deserialize<ControlResponse>(responseJson) ??
                        new ControlResponse { Success = false, Message = "Invalid response" };
             }
 
@@ -87,7 +83,7 @@ namespace TaxChain.CLI.Services
                 // Check if already running
                 if (await IsDaemonRunningAsync())
                 {
-                    _console.MarkupLine("[yellow]Daemon is already running[/]");
+                    AnsiConsole.MarkupLine("[yellow]Daemon is already running[/]");
                     return true;
                 }
 
@@ -102,24 +98,49 @@ namespace TaxChain.CLI.Services
                 };
 
                 using var process = Process.Start(processInfo);
-                
+
                 // Wait for daemon to start
                 for (int i = 0; i < 30; i++) // Wait up to 30 seconds
                 {
                     await Task.Delay(1000);
                     if (await IsDaemonRunningAsync())
                     {
-                        _console.MarkupLine("[green]Daemon started successfully[/]");
+                        AnsiConsole.MarkupLine("[green]Daemon started successfully[/]");
                         return true;
                     }
                 }
-
-                _console.MarkupLine("[red]Failed to start daemon[/]");
+                AnsiConsole.MarkupLine("[red]Failed to start daemon[/]");
                 return false;
             }
             catch (Exception ex)
             {
-                _console.MarkupLine($"[red]Error starting daemon: {ex.Message}[/]");
+                AnsiConsole.MarkupLine($"[red]Error starting daemon: {ex.Message}[/]");
+                return false;
+            }
+        }
+
+        public async Task<bool> StopDaemonAsync()
+        {
+            try
+            {
+                if (!await IsDaemonRunningAsync())
+                {
+                    AnsiConsole.MarkupLine("[yellow]Daemon is not running, nothing to stop.[/]");
+                    return true;
+                }
+
+                var response = await SendCommandAsync("stop");
+                if (response == null || !response.Success)
+                {
+                    AnsiConsole.MarkupLine("[red]Failed to stop the daemon.[/]");
+                    return true;
+                }
+                AnsiConsole.MarkupLine("[green]Successfully stopped the daemon.[/]");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Error starting daemon: {ex.Message}[/]");
                 return false;
             }
         }
