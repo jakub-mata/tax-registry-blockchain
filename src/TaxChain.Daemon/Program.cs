@@ -17,7 +17,7 @@ namespace TaxChain.Daemon
             var host = Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                     {
-                        services.AddHostedService<Services.BlockchainDaemonService>();
+                        services.AddHostedService<Services.ControlService>();
                         services.AddSingleton<Storage.IBlockchainRepository, Storage.PSQLRepository>();
                         services.AddSingleton<P2PNetworkManager>();
                         services.AddSingleton<ILogger>();
@@ -37,67 +37,34 @@ namespace TaxChain.Daemon.Services
     using System.IO;
     using System.Collections.Generic;
     using System.Text.Json;
-    public class BlockchainDaemonService : IHostedService
-    {
-        private readonly P2PNetworkManager _networkManager;
-        private readonly IBlockchainRepository _blockchainRepository;
-        private readonly ILogger<BlockchainDaemonService> _logger;
-
-        public IBlockchainRepository BlockchainRepository
-        {
-            get
-            {
-                return _blockchainRepository;
-            }
-        }
-
-        public BlockchainDaemonService(
-            P2PNetworkManager networkManager,
-            IBlockchainRepository blockchainRepository,
-            ILogger<BlockchainDaemonService> logger)
-        {
-            _networkManager = networkManager;
-            _blockchainRepository = blockchainRepository;
-            _logger = logger;
-        }
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("Starting up the blockchain daemon...");
-            throw new NotImplementedException();
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("Stopping the blockchain daemon...");
-            throw new NotImplementedException();
-        }
-
-        public Task SynchronizeAll()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task SynchronizeOne(int chainId)
-        {
-            throw new NotImplementedException();
-        }
-    }
 
     public class ControlService : IHostedService
     {
         private readonly ILogger<ControlService> _logger;
+        private readonly IBlockchainRepository _blockchainRepository;
+        private readonly P2PNetworkManager _networkManager;
+        private readonly IHostApplicationLifetime _applicationLifetime;
+        private DateTime? _startupTimestamp;
         private NamedPipeServerStream? _pipeServer;
         private CancellationTokenSource _cancellationTokenSource = new();
         private Task? _listeningTask;
 
-        public ControlService(ILogger<ControlService> logger)
+        public ControlService(
+            P2PNetworkManager networkManager,
+            IBlockchainRepository blockchainRepository,
+            IHostApplicationLifetime applicationLifetime,
+            ILogger<ControlService> logger)
         {
+            _networkManager = networkManager;
+            _blockchainRepository = blockchainRepository;
+            _applicationLifetime = applicationLifetime;
             _logger = logger;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _listeningTask = Task.Run(ListenForCommands, _cancellationTokenSource.Token);
+            _startupTimestamp = DateTime.Now;
             return Task.CompletedTask;
         }
 
@@ -176,23 +143,47 @@ namespace TaxChain.Daemon.Services
 
         private Task<ControlResponse> HandleStatusCommand()
         {
+            var process = Environment.ProcessId;
+            var uptime = DateTime.Now - _startupTimestamp;
+            
+            _logger.LogInformation("Status check requested");
+            
             return Task.FromResult(new ControlResponse
             {
                 Success = true,
                 Message = "Daemon is running",
-                Data = new { Status = "Running", Uptime = DateTime.UtcNow }
+                Data = new 
+                {
+                    Status = "Running", 
+                    ProcessId = process,
+                    Uptime = uptime,
+                    Timestamp = DateTime.UtcNow
+                }
             });
         }
 
         private async Task<ControlResponse> HandleStopCommand()
         {
-            // Signal the application to stop
-            // This would typically involve communicating with the host
-            return new ControlResponse
+            _logger.LogInformation("Stop command received");
+            var response = new ControlResponse
             {
                 Success = true,
-                Message = "Daemon stopping"
+                Message = "Daemon shutdown initiated",
             };
+
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(100); // ensuring the response is sent
+                    _applicationLifetime.StopApplication();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to stop the daemon.");
+                }
+            });
+            return response;
         }
 
         private Task<ControlResponse> HandleSyncCommand(Dictionary<string, object>? parameters)
