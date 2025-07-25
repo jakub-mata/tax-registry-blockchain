@@ -8,7 +8,7 @@ internal sealed class ListCommand : BaseCommand<ListCommand.Settings>
     {
 
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
@@ -19,7 +19,7 @@ internal sealed class RemoveCommand : BaseCommand<RemoveCommand.Settings>
     {
 
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
@@ -30,7 +30,7 @@ internal sealed class CreateCommand : BaseCommand<CreateCommand.Settings>
     {
 
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
@@ -41,7 +41,7 @@ internal sealed class VerifyCommand : BaseCommand<VerifyCommand.Settings>
     {
 
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
@@ -53,7 +53,7 @@ internal sealed class FetchCommand : BaseCommand<FetchCommand.Settings>
     {
 
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
@@ -64,7 +64,7 @@ internal sealed class SyncCommand : BaseCommand<SyncCommand.Settings>
     {
 
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }

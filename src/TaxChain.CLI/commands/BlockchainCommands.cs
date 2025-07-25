@@ -11,7 +11,7 @@ public class BlockchainSettings : CommandSettings
 internal sealed class AddBlockCommand : BaseCommand<AddBlockCommand.Settings>
 {
     public class Settings : BlockchainSettings {}
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
@@ -23,7 +23,7 @@ internal sealed class GatherCommand : BaseCommand<GatherCommand.Settings>
         [CommandOption("-u|--user <USER_ADDRESS>")]
         public string? UserAddress { get; set; }
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
@@ -38,7 +38,7 @@ internal sealed class LedgerCommand : BaseCommand<LedgerCommand.Settings>
         [CommandOption("-a|--all")]
         public bool All { get; set; }
     }
-    public override int Execute(CommandContext context, Settings settings)
+    public override int ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
