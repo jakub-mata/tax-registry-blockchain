@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -9,10 +11,43 @@ namespace TaxChain.CLI.commands;
 
 internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
 {
-    public class Settings : CommandSettings {}
+    public class Settings : CommandSettings { }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         EnsureDaemonRunning();
+        AnsiConsole.MarkupLine("Sending a list request to the chain deamon.[/]");
+        try
+        {
+            Blockchain[]? fetched = await GetAllChains();
+            if (fetched == null)
+                return 1;
+            if (fetched == null)
+                {
+                    AnsiConsole.MarkupLine("[red]Failed translate data from the daemon.[/]");
+                    return 1;
+                }
+            string[] columns = { "chainId", "name", "rewardAmount", "difficulty" };
+            string[,] rows = new string[fetched.Length, 4];
+            for (int i = 0; i < fetched.Length; ++i)
+            {
+                rows[i, 0] = fetched[i].Id.ToString();
+                rows[i, 1] = fetched[i].Name.ToString();
+                rows[i, 2] = fetched[i].RewardAmount.ToString();
+                rows[i, 3] = fetched[i].Difficulty.ToString();
+            }
+            AnsiConsole.Write(TableFactory.CreateTable(columns, rows));
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]Failed to list blockchains.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+    }
+
+    internal static async Task<Blockchain[]?> GetAllChains()
+    {
         AnsiConsole.MarkupLine("Sending a list request to the chain deamon.[/]");
         try
         {
@@ -21,36 +56,21 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
             {
                 AnsiConsole.MarkupLine("Attempt to list blockchains by the daemon failed.[/]");
                 AnsiConsole.MarkupLine($"Daemon's response: {response.Message}[/]");
-                return 1;
+                return null;
             }
             if (response.Data != null)
             {
                 var blockchains = (Blockchain[])response.Data;
-                if (blockchains == null)
-                {
-                    AnsiConsole.MarkupLine("[red]Failed translate data from the daemon.[/]");
-                    return 1;
-                }
-                string[] columns = { "chainId", "name", "rewardAmount", "difficulty" };
-                string[,] rows = new string[blockchains.Length, 4];
-                for (int i = 0; i < blockchains.Length; ++i)
-                {
-                    rows[i, 0] = blockchains[i].Id.ToString();
-                    rows[i, 1] = blockchains[i].Name.ToString();
-                    rows[i, 2] = blockchains[i].RewardAmount.ToString();
-                    rows[i, 3] = blockchains[i].Difficulty.ToString();
-                }
-                AnsiConsole.Write(TableFactory.CreateTable(columns, rows));
-                return 0;
+                return blockchains;
             }
-            AnsiConsole.MarkupLine("[red]Daemon has not responded with data. Try again later.[/]");
-            return 1;
+            AnsiConsole.MarkupLine("[yellow]No data returned by the daemon.[/]");
+            return null;
         }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine("[red]Failed to list blockchains.[/]");
             AnsiConsole.WriteException(ex);
-            return 1;
+            return null;
         }
     }
 }
@@ -156,11 +176,45 @@ internal sealed class VerifyCommand : BaseAsyncCommand<VerifyCommand.Settings>
 {
     public class Settings : CommandSettings
     {
-
+        [CommandOption("-c|--chain <CHAIN_ID>")]
+        public string? ChainId { get; set; }
     }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        throw new System.NotImplementedException();
+        if (settings.ChainId == null)
+        {
+            AnsiConsole.MarkupLine("[yellow]No chain id provided, no chain to verify[/]");
+            return 1;
+        }
+        bool ok = Guid.TryParse(settings.ChainId, out Guid parsed);
+        if (!ok)
+        {
+            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id. If unsure about the id, use the 'list' command");
+            return 1;
+        }
+
+        EnsureDaemonRunning();
+        try
+        {
+            var parameters = new Dictionary<string, object>(){
+                {"chainId", parsed},
+            };
+            var response = await CLIClient.clientd.SendCommandAsync("verify", parameters);
+            if (!response.Success)
+            {
+                AnsiConsole.MarkupLine("[yellow]Failed to verify the chain");
+                AnsiConsole.WriteLine($"Daemon message: {response.Message}");
+                return 1;
+            }
+            AnsiConsole.MarkupLine($"[green]The taxchain {settings.ChainId} is valid");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]An exception occured during verification.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
     }
 }
 
@@ -168,21 +222,115 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
 {
     public class Settings : CommandSettings
     {
-
+        [CommandOption("-c|--chain <CHAIN_ID>")]
+        public string? ChainId { get; set; }
     }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        throw new System.NotImplementedException();
+        if (settings.ChainId == null)
+        {
+            AnsiConsole.MarkupLine("[yellow]No chain id provided, no chain to verify[/]");
+            return 1;
+        }
+        bool ok = Guid.TryParse(settings.ChainId, out Guid parsed);
+        if (!ok)
+        {
+            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.");
+            return 1;
+        }
+        EnsureDaemonRunning();
+        try
+        {
+            var properties = new Dictionary<string, object>()
+            {
+                {"chainId", parsed}
+            };
+            var response = await CLIClient.clientd.SendCommandAsync("fetch", properties);
+            if (!response.Success)
+            {
+                AnsiConsole.MarkupLine("[red]Fetch unsuccessful.[/]");
+                AnsiConsole.WriteLine($"Daemon's message: {response.Message}");
+            }
+            AnsiConsole.MarkupLine($"[green]Taxchain {settings.ChainId} fetched successfully.");
+            if (response.Data != null)
+            {
+                Blockchain b = (Blockchain)response.Data;
+                AnsiConsole.MarkupLine($"[green]{b.Name} is now stored locally.");
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]An exception occured during verification.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
     }
 }
 internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
 {
     public class Settings : CommandSettings
     {
-
+        [CommandOption("-c|--chain <CHAIN_ID>")]
+        public string? ChainId { get; set; }
     }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        throw new System.NotImplementedException();
+        EnsureDaemonRunning();
+        int status = settings.ChainId == null
+            ? await SyncAll()
+            : await SyncOne(settings.ChainId);
+        return status;
+    }
+
+    private async Task<int> SyncOne(string id)
+    {
+        bool ok = Guid.TryParse(id, out Guid parsed);
+        if (!ok)
+        {
+            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.");
+            return 1;
+        }
+        try
+        {
+            var properties = new Dictionary<string, object>()
+            {
+                {"chainId", parsed},
+            };
+            var response = await CLIClient.clientd.SendCommandAsync("sync");
+            if (!response.Success)
+            {
+                AnsiConsole.MarkupLine("[red]Synchorisation failed.[/]");
+                AnsiConsole.WriteLine($"Daemon's message: ${response.Message}");
+                return 1;
+            }
+            AnsiConsole.MarkupLine($"[green]Taxchain {id} has been synchronised!");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]An exception occured during verification.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+    }
+
+    private async Task<int> SyncAll()
+    {
+        // get all ids, similar to 'list' command
+        Blockchain[]? fetched = await ListCommand.GetAllChains();
+        if (fetched == null)
+            return 1;
+        foreach (Blockchain b in fetched)
+        {
+            AnsiConsole.WriteLine($"Synchronising {b.Id.ToString()}...");
+            int status = await SyncOne(b.Id.ToString());
+            if (status == 1)
+                AnsiConsole.MarkupLine($"Failed to sync blockchain with id [yellow]{b.Id.ToString()}[/]");
+            else
+                AnsiConsole.MarkupLine($"Successfully synced blockchain with id [green]{b.Id.ToString()}[/]");
+        }
+        AnsiConsole.WriteLine("Synchronisation has finished");
+        return 0;
     }
 }
