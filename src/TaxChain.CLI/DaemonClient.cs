@@ -13,8 +13,37 @@ namespace TaxChain.CLI.Services
     public class DaemonClient
     {
         private const string PipeName = "TaxChainControlPipe";
+        private readonly string _daemonProjectPath;
+        public DaemonClient()
+        {
+            _daemonProjectPath = Environment.GetEnvironmentVariable("TAXCHAIN_DAEMON_PATH") ?? GetDefaultDaemonPath();
+        }
 
-        public DaemonClient() { }
+        private string GetDefaultDaemonPath()
+        {
+            // Try to find the daemon project in common locations
+            var currentDir = Directory.GetCurrentDirectory();
+
+            // Check if we're in the root project directory
+            var daemonPath = Path.Combine(currentDir, "src", "TaxChain.Daemon", "TaxChain.Daemon.csproj");
+            if (File.Exists(daemonPath))
+                return daemonPath;
+
+            // Check if we're in the CLI directory
+            var parentDir = Directory.GetParent(currentDir)?.FullName ?? currentDir;
+            daemonPath = Path.Combine(parentDir, "src", "TaxChain.Daemon", "TaxChain.Daemon.csproj");
+            if (File.Exists(daemonPath))
+                return daemonPath;
+
+            // Check one level up (if in src/TaxChain.CLI)
+            var grandParentDir = Directory.GetParent(parentDir)?.FullName ?? parentDir;
+            daemonPath = Path.Combine(grandParentDir, "src", "TaxChain.Daemon", "TaxChain.Daemon.csproj");
+            if (File.Exists(daemonPath))
+                return daemonPath;
+
+            // Default fallback
+            return "src/TaxChain.Daemon/TaxChain.Daemon.csproj";
+        }
 
         public async Task<bool> IsDaemonRunningAsync()
         {
@@ -86,12 +115,11 @@ namespace TaxChain.CLI.Services
                     AnsiConsole.MarkupLine("[yellow]Daemon is already running[/]");
                     return true;
                 }
-
                 // Start the daemon process
                 var processInfo = new ProcessStartInfo
                 {
                     FileName = "dotnet",
-                    Arguments = "run --project ../TaxChain.Daemon/TaxChain.Daemon.csproj",
+                    Arguments = $"run --project {_daemonProjectPath}",
                     WorkingDirectory = Directory.GetCurrentDirectory(),
                     UseShellExecute = true,
                     CreateNoWindow = true
