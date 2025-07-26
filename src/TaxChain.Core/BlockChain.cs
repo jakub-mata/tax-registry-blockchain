@@ -6,10 +6,10 @@ public struct Blockchain
 {
     public Guid Id { get; set; }
     public string Name { get; set; }
-    public int RewardAmount { get; set; }
+    public float RewardAmount { get; set; }
     public int Difficulty { get; set; }
 
-    public Blockchain(Guid id, string name, int rewardAmount, int difficulty)
+    public Blockchain(Guid id, string name, float rewardAmount, int difficulty)
     {
         Id = id;
         Name = name;
@@ -17,7 +17,7 @@ public struct Blockchain
         Difficulty = difficulty;
     }
 
-    public Blockchain(string name, int rewardAmount, int difficulty)
+    public Blockchain(string name, float rewardAmount, int difficulty)
     {
         Name = name;
         RewardAmount = rewardAmount;
