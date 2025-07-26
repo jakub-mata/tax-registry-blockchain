@@ -13,3 +13,10 @@ public class ControlResponse
     public string Message { get; set; } = string.Empty;
     public object? Data { get; set; }
 }
+
+public class TaxpayerInformation
+{
+    public string? TaxpayerId { get; set; }
+    public float Balance { get; set; }
+    public Transaction[]? Transactions {get; set;}
+}
