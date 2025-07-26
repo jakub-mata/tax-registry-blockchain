@@ -12,12 +12,8 @@ internal sealed class StartCommand : BaseAsyncCommand<StartCommand.StartSetting>
     {
         bool ok = await CLIClient.clientd.StartDaemonAsync();
         if (!ok)
-        {
-            AnsiConsole.MarkupLine("[red]The daemon failed to start up. Try again later.[/]");
-            return 0;
-        }
-        AnsiConsole.MarkupLine("[green]The daemon is running.[/]");
-        return 1;
+            return 1;
+        return 0;
     }
 }
 
@@ -28,12 +24,8 @@ internal sealed class KillCommand : BaseAsyncCommand<KillCommand.KillSettings>
     {
         bool ok = await CLIClient.clientd.StopDaemonAsync();
         if (!ok)
-        {
-            AnsiConsole.MarkupLine("[red]The daemon failed to stop. Try again later.[/]");
-            return 0;
-        }
-        AnsiConsole.MarkupLine("[green]The daemon has been stopped.[/]");
-        return 1;
+            return 1;
+        return 0;
     }
 }
 
@@ -45,11 +37,7 @@ internal sealed class StatusCommand : BaseAsyncCommand<StatusCommand.Settings>
     {
         var statusResponse = await CLIClient.clientd.SendCommandAsync("status");
         if (statusResponse.Success)
-        {
-            AnsiConsole.MarkupLine("The daemon is currently [green]running.[/]");
-            return 0;
-        }
-        AnsiConsole.MarkupLine("The daemon is [red]not running.[/]");
+            return 1;
         return 0;
     }
 }

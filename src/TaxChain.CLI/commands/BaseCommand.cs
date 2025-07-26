@@ -17,6 +17,7 @@ namespace TaxChain.CLI.commands
         {
             // Check if daemon is running, start if needed
             Console.MarkupLine("[yellow]Checking daemon status...[/]");
+            Console.WriteLine("Mock starting the daemon...");
             // Implementation would check daemon status and start if needed
         }
     }
