@@ -88,7 +88,7 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
             var response = await CLIClient.clientd.SendCommandAsync("add");
             if (!response.Success)
             {
-                AnsiConsole.MarkupLine("[red]Failed to add block to taxchain.");
+                AnsiConsole.MarkupLine("[red]Failed to add block to taxchain.[/]");
                 AnsiConsole.WriteLine($"Daemon's message: {response.Message}");
                 return 1;
             }
@@ -224,7 +224,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
             TaxpayerInformation? info = (TaxpayerInformation?)response.Data;
             if (info == null)
             {
-                AnsiConsole.Markup("[red]Could not parse received data.[/]");
+                AnsiConsole.MarkupLine("[red]Could not parse received data.[/]");
                 return 1;
             }
 
@@ -242,7 +242,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
     private static void DisplayTaxpayerTable(core.TaxpayerInformation data, bool verbose)
     {
         AnsiConsole.MarkupLine($"ID: [green]{data.TaxpayerId}[/]");
-        AnsiConsole.MarkupLine($"Balance: [green]{data.Balance}");
+        AnsiConsole.MarkupLine($"Balance: [green]{data.Balance}[/]");
         if (verbose && data.Transactions != null)
             TableFactory.CreateTransactionsTable(data.Transactions);
     }

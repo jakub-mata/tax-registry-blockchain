@@ -161,12 +161,12 @@ internal sealed class CreateCommand : BaseAsyncCommand<CreateCommand.Settings>
                 return 0;
             }
             Guid id = (Guid)response.Data;
-            Console.Markup($"[green]Taxchain creation successful!. Here's its id: {id.ToString()}");
+            Console.Markup($"[green]Taxchain creation successful!. Here's its id: {id.ToString()}[/]");
             return 0;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine("[red]Failed to create a new blockchain.");
+            AnsiConsole.MarkupLine("[red]Failed to create a new blockchain.[/]");
             AnsiConsole.WriteException(ex);
             return 1;
         }
@@ -189,7 +189,7 @@ internal sealed class VerifyCommand : BaseAsyncCommand<VerifyCommand.Settings>
         bool ok = Guid.TryParse(settings.ChainId, out Guid parsed);
         if (!ok)
         {
-            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id. If unsure about the id, use the 'list' command");
+            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id. If unsure about the id, use the 'list' command[/]");
             return 1;
         }
 
@@ -202,11 +202,11 @@ internal sealed class VerifyCommand : BaseAsyncCommand<VerifyCommand.Settings>
             var response = await CLIClient.clientd.SendCommandAsync("verify", parameters);
             if (!response.Success)
             {
-                AnsiConsole.MarkupLine("[yellow]Failed to verify the chain");
+                AnsiConsole.MarkupLine("[yellow]Failed to verify the chain.[/]");
                 AnsiConsole.WriteLine($"Daemon message: {response.Message}");
                 return 1;
             }
-            AnsiConsole.MarkupLine($"[green]The taxchain {settings.ChainId} is valid");
+            AnsiConsole.MarkupLine($"[green]The taxchain {settings.ChainId} is valid.[/]");
             return 0;
         }
         catch (Exception ex)
@@ -235,7 +235,7 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
         bool ok = Guid.TryParse(settings.ChainId, out Guid parsed);
         if (!ok)
         {
-            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.");
+            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.[/]");
             return 1;
         }
         EnsureDaemonRunning();
@@ -251,11 +251,11 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
                 AnsiConsole.MarkupLine("[red]Fetch unsuccessful.[/]");
                 AnsiConsole.WriteLine($"Daemon's message: {response.Message}");
             }
-            AnsiConsole.MarkupLine($"[green]Taxchain {settings.ChainId} fetched successfully.");
+            AnsiConsole.MarkupLine($"[green]Taxchain {settings.ChainId} fetched successfully.[/]");
             if (response.Data != null)
             {
                 Blockchain b = (Blockchain)response.Data;
-                AnsiConsole.MarkupLine($"[green]{b.Name} is now stored locally.");
+                AnsiConsole.MarkupLine($"[green]{b.Name} is now stored locally.[/]");
             }
             return 0;
         }
@@ -288,7 +288,7 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
         bool ok = Guid.TryParse(id, out Guid parsed);
         if (!ok)
         {
-            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.");
+            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.[/]");
             return 1;
         }
         try
@@ -304,7 +304,7 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
                 AnsiConsole.WriteLine($"Daemon's message: ${response.Message}");
                 return 1;
             }
-            AnsiConsole.MarkupLine($"[green]Taxchain {id} has been synchronised!");
+            AnsiConsole.MarkupLine($"[green]Taxchain {id} has been synchronised![/]");
             return 0;
         }
         catch (Exception ex)

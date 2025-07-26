@@ -16,7 +16,7 @@ internal sealed class StartCommand : BaseAsyncCommand<StartCommand.StartSetting>
             AnsiConsole.MarkupLine("[red]The daemon failed to start up. Try again later.[/]");
             return 0;
         }
-        AnsiConsole.MarkupLine("[green]The daemon is running.");
+        AnsiConsole.MarkupLine("[green]The daemon is running.[/]");
         return 1;
     }
 }
@@ -32,7 +32,7 @@ internal sealed class KillCommand : BaseAsyncCommand<KillCommand.KillSettings>
             AnsiConsole.MarkupLine("[red]The daemon failed to stop. Try again later.[/]");
             return 0;
         }
-        AnsiConsole.MarkupLine("[green]The daemon has been stopped.");
+        AnsiConsole.MarkupLine("[green]The daemon has been stopped.[/]");
         return 1;
     }
 }
