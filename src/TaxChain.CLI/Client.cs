@@ -2,6 +2,7 @@ using System;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using TaxChain.CLI.commands;
+using TaxChain.core;
 
 namespace TaxChain.CLI
 {

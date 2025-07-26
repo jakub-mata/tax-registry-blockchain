@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Spectre.Console.Cli;
 
 namespace TaxChain.CLI.commands;
@@ -8,27 +9,27 @@ public class BlockchainSettings : CommandSettings
     public string BlockchainId { get; set; } = string.Empty;
 }
 
-internal sealed class AddBlockCommand : BaseCommand<AddBlockCommand.Settings>
+internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Settings>
 {
     public class Settings : BlockchainSettings {}
-    public override int ExecuteAsync(CommandContext context, Settings settings)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
 }
-internal sealed class GatherCommand : BaseCommand<GatherCommand.Settings>
+internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
 {
     public class Settings : BlockchainSettings
     {
         [CommandOption("-u|--user <USER_ADDRESS>")]
         public string? UserAddress { get; set; }
     }
-    public override int ExecuteAsync(CommandContext context, Settings settings)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
 }
-internal sealed class LedgerCommand : BaseCommand<LedgerCommand.Settings>
+internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
 {
     public class Settings : BlockchainSettings
     {
@@ -38,7 +39,7 @@ internal sealed class LedgerCommand : BaseCommand<LedgerCommand.Settings>
         [CommandOption("-a|--all")]
         public bool All { get; set; }
     }
-    public override int ExecuteAsync(CommandContext context, Settings settings)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         throw new System.NotImplementedException();
     }
