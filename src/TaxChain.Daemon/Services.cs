@@ -15,7 +15,6 @@ namespace TaxChain.Daemon.Services
 {
     public class ControlService : IHostedService
     {
-        private readonly ILogger<ControlService> _logger;
         private readonly IBlockchainRepository _blockchainRepository;
         private readonly P2PNetworkManager _networkManager;
         private readonly IHostApplicationLifetime _applicationLifetime;
@@ -27,13 +26,11 @@ namespace TaxChain.Daemon.Services
         public ControlService(
             P2PNetworkManager networkManager,
             IBlockchainRepository blockchainRepository,
-            IHostApplicationLifetime applicationLifetime,
-            ILogger<ControlService> logger)
+            IHostApplicationLifetime applicationLifetime)
         {
             _networkManager = networkManager;
             _blockchainRepository = blockchainRepository;
             _applicationLifetime = applicationLifetime;
-            _logger = logger;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -69,7 +66,7 @@ namespace TaxChain.Daemon.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error in control pipe listener");
+                    throw ex;
                 }
             }
         }
@@ -169,8 +166,6 @@ namespace TaxChain.Daemon.Services
             var process = Environment.ProcessId;
             var uptime = DateTime.Now - _startupTimestamp;
 
-            _logger.LogInformation("Status check requested");
-
             return Task.FromResult(new ControlResponse
             {
                 Success = true,
@@ -187,7 +182,6 @@ namespace TaxChain.Daemon.Services
 
         private async Task<ControlResponse> HandleStopCommand()
         {
-            _logger.LogInformation("Stop command received");
             var response = new ControlResponse
             {
                 Success = true,
@@ -203,7 +197,7 @@ namespace TaxChain.Daemon.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to stop the daemon.");
+                    throw ex;
                 }
             });
             return response;

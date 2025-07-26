@@ -9,7 +9,7 @@ namespace TaxChain.Daemon
 {
     class Program
     {
-        public static async void Main(string[] args)
+        public static void Main(string[] args)
         {
             Console.WriteLine("Daemon program runs");
             var host = Host.CreateDefaultBuilder(args)
@@ -18,11 +18,10 @@ namespace TaxChain.Daemon
                         services.AddHostedService<Services.ControlService>();
                         services.AddSingleton<Storage.IBlockchainRepository, Storage.PSQLRepository>();
                         services.AddSingleton<P2PNetworkManager>();
-                        services.AddSingleton<ILogger>();
                     })
                 .Build();
 
-            await host.RunAsync();
+            host.Run();
         }
     }
 }
