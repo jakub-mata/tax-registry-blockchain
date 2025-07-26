@@ -137,8 +137,38 @@ namespace TaxChain.Daemon.Services
                 "status" => await HandleStatusCommand(),
                 "stop" => await HandleStopCommand(),
                 "sync" => await HandleSyncCommand(request.Parameters),
+                "list" => await HandleListCommand(),
+                "remove" => await HandleRemoveCommand(request.Parameters),
+                "create" => await HandleCreateCommand(request.Parameters),
+                "verify" => await HandleVerifyCommand(request.Parameters),
+                "fetch" => await HandleFetchCommand(request.Parameters),
                 _ => new ControlResponse { Success = false, Message = $"Unknown command: {request.Command}" }
             };
+        }
+
+        private async Task<ControlResponse> HandleFetchCommand(Dictionary<string, object>? parameters)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task<ControlResponse> HandleVerifyCommand(Dictionary<string, object>? parameters)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task<ControlResponse> HandleCreateCommand(Dictionary<string, object>? parameters)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task<ControlResponse> HandleRemoveCommand(Dictionary<string, object>? parameters)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task<ControlResponse> HandleListCommand()
+        {
+            throw new NotImplementedException();
         }
 
         private Task<ControlResponse> HandleStatusCommand()
