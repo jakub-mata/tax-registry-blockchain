@@ -1,3 +1,5 @@
+using System;
+
 namespace TaxChain.core;
 
 using System.Collections.Generic;
@@ -18,5 +20,13 @@ public class TaxpayerInformation
 {
     public string? TaxpayerId { get; set; }
     public float Balance { get; set; }
-    public Transaction[]? Transactions {get; set;}
+    public Transaction[]? Transactions { get; set; }
+}
+
+public class StatusInformation
+{
+    public string? Status { get; set; }
+    public int ProcessId { get; set; }
+    public TimeSpan? Uptime { get; set; }
+    public DateTime TimeStamp { get; set; }
 }
