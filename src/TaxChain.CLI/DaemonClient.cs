@@ -7,6 +7,7 @@ using System.IO;
 using TaxChain.core;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 
 namespace TaxChain.CLI.Services
 {
@@ -67,6 +68,7 @@ namespace TaxChain.CLI.Services
             try
             {
                 using var pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut);
+                AnsiConsole.WriteLine("Connecting to the daemon. Might take up to 5 seconds...");
                 await pipeClient.ConnectAsync(5000);
 
                 var request = new ControlRequest
@@ -158,6 +160,8 @@ namespace TaxChain.CLI.Services
                 }
 
                 var response = await SendCommandAsync("stop");
+                AnsiConsole.MarkupLine("[yellow]Response recevied, awaiting shutdown...[/]");
+                Thread.Sleep(1000);
                 if (response == null || !response.Success)
                 {
                     AnsiConsole.MarkupLine("[red]Failed to stop the daemon.[/]");
