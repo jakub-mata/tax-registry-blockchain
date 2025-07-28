@@ -7,15 +7,15 @@ public struct Transaction
     public TaxType Type { get; set; }
     public string TaxpayerId { get; set; }          // Tax ID or SSN
     public decimal Amount { get; set; }             // Tax amount
-    public decimal TaxableBase { get; set; }        // Income/amount subject to tax
-    public decimal TaxRate { get; set; }            // Applicable tax rate
+    public decimal? TaxableBase { get; set; }        // Income/amount subject to tax
+    public decimal? TaxRate { get; set; }            // Applicable tax rate
     public DateTime TaxPeriodStart { get; set; }    // Period covered
     public DateTime TaxPeriodEnd { get; set; }
     public DateTime DueDate { get; set; }           // Payment deadline
     public DateTime PaymentDate { get; set; }      // When paid
     public string Jurisdiction { get; set; }        // Tax authority
     public TaxStatus Status { get; set; }           // Filed/Paid/Delinquent
-    public string Notes { get; set; }               // Additional information
+    public string? Notes { get; set; }               // Additional information
 
     public Transaction(
         string taxpayerId,
@@ -45,15 +45,15 @@ public struct Transaction
     public Transaction(
         string taxpayerId,
         decimal amount,
-        decimal taxableBase,
-        decimal taxRate,
+        decimal? taxableBase,
+        decimal? taxRate,
         DateTime taxPeriodStart,
         DateTime taxPeriodEnd,
         DateTime dueDate,
         DateTime paymentDate,
         string jurisdiction,
         TaxStatus status,
-        string notes
+        string? notes
     )
     {
         TaxpayerId = taxpayerId;

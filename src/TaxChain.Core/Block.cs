@@ -5,7 +5,7 @@ namespace TaxChain.core;
 
 public class Block
 {
-    public Block(string? prevHash, Transaction t)
+    public Block(string? prevHash, Transaction[] t)
     {
         PreviousHash = prevHash;
         Nonce = 0;
@@ -13,7 +13,7 @@ public class Block
         Payload = t;
     }
 
-    public Block(string prevHash, string hash, int nonce, Transaction payload)
+    public Block(string prevHash, string hash, int nonce, Transaction[] payload)
     {
         PreviousHash = prevHash;
         Hash = hash;
@@ -24,7 +24,7 @@ public class Block
     public string? PreviousHash { get; set; }
     public string Hash { get; set; }
     public int Nonce { get; set; }
-    public Transaction Payload { get; set; }
+    public Transaction[] Payload { get; set; }
 
     public string Digest()
     {
