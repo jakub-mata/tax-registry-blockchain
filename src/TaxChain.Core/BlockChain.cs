@@ -19,6 +19,7 @@ public struct Blockchain
 
     public Blockchain(string name, float rewardAmount, int difficulty)
     {
+        Id = Guid.NewGuid();
         Name = name;
         RewardAmount = rewardAmount;
         Difficulty = difficulty;

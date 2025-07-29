@@ -19,7 +19,7 @@ public struct Transaction
 
     public Transaction(
         string taxpayerId,
-        decimal amount, 
+        decimal amount,
         decimal taxableBase,
         decimal taxRate,
         DateTime taxPeriodStart,
@@ -115,5 +115,10 @@ public struct Transaction
         UnderAudit,                 // Currently being audited
         Disputed,                   // Taxpayer dispute
         Refunded                    // Overpayment refunded
+    }
+
+    public override string ToString()
+    {
+        return $"{Type}{TaxpayerId}{Amount}{TaxableBase}{TaxRate}{TaxPeriodStart}{TaxPeriodEnd}{DueDate}{PaymentDate}{Jurisdiction}{Status}{Notes}";
     }
 }

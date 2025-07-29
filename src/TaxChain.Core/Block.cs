@@ -5,25 +5,30 @@ namespace TaxChain.core;
 
 public class Block
 {
-    public Block(string? prevHash, Transaction[] t)
+    public Block(Guid chainId, string? prevHash, Transaction[] t)
     {
+        ChainId = chainId;
         PreviousHash = prevHash;
         Nonce = 0;
         Hash = Digest();
         Payload = t;
+        Timestamp = DateTime.Now;
     }
 
-    public Block(string prevHash, string hash, int nonce, Transaction[] payload)
+    public Block(Guid chainId, string prevHash, string hash, int nonce, DateTime timestamp, Transaction[] payload)
     {
+        ChainId = chainId;
         PreviousHash = prevHash;
         Hash = hash;
         Nonce = nonce;
+        Timestamp = timestamp;
         Payload = payload;
     }
-    public int Id { get; set; }
+    public Guid ChainId { get; set; }
     public string? PreviousHash { get; set; }
     public string Hash { get; set; }
     public int Nonce { get; set; }
+    public DateTime Timestamp { get; set; }
     public Transaction[] Payload { get; set; }
 
     public string Digest()
