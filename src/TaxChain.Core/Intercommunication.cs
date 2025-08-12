@@ -16,13 +16,6 @@ public class ControlResponse
     public object? Data { get; set; }
 }
 
-public class TaxpayerInformation
-{
-    public string? TaxpayerId { get; set; }
-    public float Balance { get; set; }
-    public Transaction[]? Transactions { get; set; }
-}
-
 public class StatusInformation
 {
     public string? Status { get; set; }
