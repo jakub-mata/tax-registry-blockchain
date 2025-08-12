@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
 using TaxChain.core;
 
 namespace TaxChain.Daemon.Storage;
@@ -7,8 +8,8 @@ namespace TaxChain.Daemon.Storage;
 public interface IBlockchainRepository
 {
     /// <summary>
-    /// Stores the given blockchain into local storage. Note that the genesis block should
-    /// be stored as well, which this method is not responsible for.
+    /// Stores the given blockchain into local storage. Note that the genesis block is
+    /// created and stored as well.
     /// </summary>
     /// <param name="blockchain">The blockchain to be stored.</param>
     /// <returns>Bool: the success of the operation.</returns>
@@ -21,13 +22,6 @@ public interface IBlockchainRepository
     /// <param name="transaction">The transaction to be equeued.</param>
     /// <returns>Bool: the success of the operation.</returns>
     public bool EnqueueTransaction(Guid chainId, Transaction transaction);
-    /// <summary>
-    /// Removes the last block of a blockchain.
-    /// </summary>
-    /// <param name="chainId">The blockchain where the pending tranactions goes after mining.</param>
-    /// <param name="transaction">Transaction to be stored</param>
-    /// <returns>Bool: the success of the operation.</returns>
-    public bool RemoveLastBlock(Guid chainId);
     /// <summary>
     /// Removes the blockchain representation from the local storage.
     /// This includes all the blocks and pending transactions related to it.
@@ -63,4 +57,17 @@ public interface IBlockchainRepository
     /// </summary>
     /// <returns>Bool: the success of the operation.</returns>
     public bool ListChains(out List<Blockchain> chains);
+    /// <summary>
+    /// Verifies the validity of a blockchain defined by id provided.
+    /// </summary>
+    /// <param name="chainId">The id of the blockchain to verity</param>
+    /// <returns>Bool: the validity of the blockchain.</returns>
+    public bool Verify(Guid chainId);
+    /// <summary>
+    /// Gathers the balance of a taxpayer in a blockchain.
+    /// </summary>
+    /// <param name="chainId">The id of the blockchain</param>
+    /// <param name="taxpayerId">Taxpayer's id</param>
+    /// <returns></returns>
+    public bool GatherTaxpayer(Guid chainId, int taxpayerId, out List<Transaction> transactions);
 }

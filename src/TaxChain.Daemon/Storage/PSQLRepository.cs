@@ -263,61 +263,6 @@ public class PGSQLRepository : IBlockchainRepository
         }
     }
 
-    public bool RemoveLastBlock(Guid chainId)
-    {
-        try
-        {
-            using var connection = GetConnection();
-            connection.Open();
-            using var transaction = connection.BeginTransaction();
-
-            // Fetch last block id
-            int? lastBlockId = GetLastBlockId(chainId, connection, transaction);
-            if (lastBlockId == null)
-            {
-                _logger.LogWarning($"Blockchain wiht given id not found:{chainId.ToString()}");
-                return false;
-            }
-
-            // Remove block
-            bool ok = DeleteBlock(chainId, (int)lastBlockId, connection, transaction);
-            if (!ok)
-            {
-                _logger.LogError("Failed to delete the last block");
-                return false;
-            }
-            transaction.Commit();
-            return true;
-        }
-        catch (Exception e)
-        {
-            _logger.LogError($"Error deleting last block: {e.Message}");
-            return false;
-        }
-    }
-
-    private static int? GetLastBlockId(Guid chainId, NpgsqlConnection conn, NpgsqlTransaction t)
-    {
-        var fetchSql = @"
-            SELECT (latest_block)
-            FROM chains
-            WHERE id=@id;
-        ";
-        using var fetchCmd = new NpgsqlCommand(fetchSql, conn, t);
-        fetchCmd.Parameters.AddWithValue("id", chainId);
-        return (int?)fetchCmd.ExecuteScalar();
-    }
-
-    private static bool DeleteBlock(Guid chainId, int id, NpgsqlConnection conn, NpgsqlTransaction t) {
-        var delSql = @"
-            DELETE FROM blocks
-            WHERE id=@id, chain_id=@chain_id;
-        ";
-        using var delCmd = new NpgsqlCommand(delSql, conn, t);
-        delCmd.Parameters.AddWithValue("id", id);
-        delCmd.Parameters.AddWithValue("chain_id", chainId);
-        return delCmd.ExecuteNonQuery() > 0;
-    }
 
     public bool Store(Blockchain blockchain)
     {
@@ -337,8 +282,14 @@ public class PGSQLRepository : IBlockchainRepository
             chainCmd.Parameters.AddWithValue("name", blockchain.Name ?? "Unnamed Chain");
             chainCmd.Parameters.AddWithValue("reward", blockchain.RewardAmount);
             chainCmd.Parameters.AddWithValue("difficulty", blockchain.Difficulty);
-
             chainCmd.ExecuteNonQuery();
+
+            bool ok = SetUpGenesisBlock(blockchain.Id, connection, transaction);
+            if (!ok)
+            {
+                _logger.LogWarning("Chain created, failed to set up genesis block");
+                return false;
+            }
 
             transaction.Commit();
             return true;
@@ -348,6 +299,20 @@ public class PGSQLRepository : IBlockchainRepository
             _logger.LogError($"Error storing blockchain: {ex.Message}");
             return false;
         }
+    }
+
+    private bool SetUpGenesisBlock(Guid chainId, NpgsqlConnection conn, NpgsqlTransaction t)
+    {
+        var genSql = @"
+            INSERT INTO (chain_id, prev_hash, hash, nonce)
+            VALUES (@chain_id, @prev_hash, @hash, @nonce)
+        ";
+        var genCmd = new NpgsqlCommand(genSql, conn, t);
+        genCmd.Parameters.AddWithValue("chain_id", chainId);
+        genCmd.Parameters.AddWithValue("prev_hash", "");
+        genCmd.Parameters.AddWithValue("hash", "");
+        genCmd.Parameters.AddWithValue("nonce", 0);
+        return genCmd.ExecuteNonQuery() > 0;
     }
 
 
@@ -583,11 +548,11 @@ public class PGSQLRepository : IBlockchainRepository
         }
     }
 
-    private Block? FindBlockByHash(Guid chainId, string lookupHash, NpgsqlConnection connection, NpgsqlTransaction? transaction)
+    private Block? FindBlockByHash(Guid chainId, string? lookupHash, NpgsqlConnection connection, NpgsqlTransaction? transaction)
     {
-        if (transaction == null)
+        if (transaction == null || lookupHash == null)
             return null;
-        
+
         try
         {
             var blockSql = @"
@@ -663,6 +628,101 @@ public class PGSQLRepository : IBlockchainRepository
         catch (Exception ex)
         {
             _logger.LogError($"Exception during blockchain fetching: {ex}");
+            return false;
+        }
+    }
+
+    public bool Verify(Guid chainId)
+    {
+        try
+        {
+            using var connection = new NpgsqlConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+            int latestId = GetBlockchainLatestBlock(chainId, connection, transaction);
+            if (latestId == -1) // just the genesis block
+                return true;
+            Block? curr = GetBlock(chainId, latestId, connection, transaction);
+            if (curr == null)
+                return false;
+
+            while (curr?.PreviousHash != "") // identifies the genesis block
+            {
+                if (curr?.Digest() != curr?.Hash)
+                {
+                    _logger.LogWarning($"Digest and hash differ");
+                    return false;
+                }
+                Block? next = FindBlockByHash(chainId, curr?.PreviousHash, connection, transaction);
+                if (next == null)
+                    return false;
+                curr = next;
+            }
+            transaction.Commit();
+            return true;
+        }
+        catch (System.Exception ex)
+        {
+            _logger.LogError($"Exception during blockchain verification: {ex}");
+            return false;
+        }
+    }
+
+    private static int GetBlockchainLatestBlock(Guid chainId, NpgsqlConnection conn, NpgsqlTransaction t)
+    {
+        string chainSql = @"
+            SELECT (latest_block) FROM chains WHERE id=@id;
+        ";
+        var chainCmd = new NpgsqlCommand(chainSql, conn, t);
+        chainCmd.Parameters.AddWithValue("id", chainId);
+        var result = chainCmd.ExecuteScalar();
+        if (result == null)
+            return -1;
+        int id = (int)result;
+        return id;
+    }
+
+    public bool GatherTaxpayer(Guid chainId, int taxpayerId, out List<Transaction> transactions)
+    {
+        transactions = new();
+        try
+        {
+            using var conn = new NpgsqlConnection();
+            conn.Open();
+            using var t = conn.BeginTransaction();
+            string taxpayerSql = @"
+            SELECT (chain_id, block_id, taxpayer_id, jurisdiction, amount, taxable_base, tax_rate, tax_type, status, notes, period_start, period_end, due_date, payment_date)
+            FROM transactions
+            WHERE chain_id=@chain_id, taxpayer_id=@taxpayer_id;";
+            var payerCmd = new NpgsqlCommand(taxpayerSql, conn, t);
+            payerCmd.Parameters.AddWithValue("chain_id", chainId);
+            payerCmd.Parameters.AddWithValue("taxpayer_id", taxpayerId);
+            var reader = payerCmd.ExecuteReader();
+            var result = payerCmd.ExecuteReader();
+            if (reader.Read())
+            {
+                Transaction curr = new();
+                curr.Amount = reader.GetDecimal(reader.GetOrdinal("amount"));
+                curr.DueDate = reader.GetDateTime(reader.GetOrdinal("due_date"));
+                curr.Jurisdiction = reader.GetString(reader.GetOrdinal("jurisdiction"));
+                curr.PaymentDate = reader.GetDateTime(reader.GetOrdinal("payment_date"));
+                curr.TaxableBase = reader.IsDBNull(reader.GetOrdinal("taxable_base")) ? null : reader.GetDecimal(reader.GetOrdinal("taxable_base"));
+                curr.TaxRate = reader.IsDBNull(reader.GetOrdinal("tax_rate")) ? null : reader.GetDecimal(reader.GetOrdinal("tax_rate"));
+                curr.TaxPeriodStart = reader.GetDateTime(reader.GetOrdinal("period_start"));
+                curr.TaxPeriodEnd = reader.GetDateTime(reader.GetOrdinal("period_end"));
+                curr.TaxpayerId = reader.GetString(reader.GetOrdinal("taxpayer_id"));
+                curr.Status = (Transaction.TaxStatus)reader.GetInt32(reader.GetOrdinal("status"));
+                curr.Notes = reader.IsDBNull(reader.GetOrdinal("notes")) ? null : reader.GetString(reader.GetOrdinal("notes"));
+                curr.Type = (Transaction.TaxType)reader.GetInt32(reader.GetOrdinal("tax_type"));
+
+                transactions.Add(curr);
+            }
+            return true;
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Exception during gathering taxpayer information: {ex}");
             return false;
         }
     }

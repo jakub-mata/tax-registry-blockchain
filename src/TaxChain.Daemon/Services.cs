@@ -10,6 +10,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading;
+using System.Globalization;
 
 namespace TaxChain.Daemon.Services
 {
@@ -203,10 +204,71 @@ namespace TaxChain.Daemon.Services
                 "verify" => HandleVerifyCommand(request.Parameters),
                 "fetch" => HandleFetchCommand(request.Parameters),
                 "add" => HandleAddCommand(request.Parameters),
-                "pop" => HandlePopCommand(request.Parameters),
+                "gather" => HandleGatherCommand(request.Parameters),
                 "ledger" => HandleLedgerCommand(request.Parameters),
                 _ => new ControlResponse { Success = false, Message = $"Unknown command: {request.Command}" }
             };
+        }
+
+        private ControlResponse HandleGatherCommand(Dictionary<string, object>? parameters)
+        {
+            if (parameters == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely [int]taxpayerId",
+                };
+            }
+            bool ok = parameters.TryGetValue("taxpayerId", out object? value);
+            if (!ok || value == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely [int]taxpayerId",
+                };
+            }
+            ok = parameters.TryGetValue("chainId", out object? id);
+            if (!ok || id == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely [Guid]chainId",
+                };
+            }
+            ok = parameters.TryGetValue("verbose", out object? v);
+            bool verbose = ok && (v != null);
+            try
+            {
+                int payerId = (int)value;
+                Guid chainId = (Guid)id;
+                ok = _blockchainRepository.GatherTaxpayer(chainId, payerId, out List<Transaction> trans);
+                if (!ok)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Repository failed to gather taxpayer information",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Successfully retrieved taxpayer information",
+                    Data = trans,
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during gather command processing: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception occured during processing: {ex}",
+                };
+            }
         }
 
         // Synchronous command handlers
@@ -269,41 +331,181 @@ namespace TaxChain.Daemon.Services
             };
         }
 
-        // Placeholder handlers - make these synchronous too
         private ControlResponse HandleListCommand()
         {
-            return new ControlResponse
+            _logger.LogInformation("List command recevied...");
+            try
             {
-                Success = true,
-                Message = "List command received"
-            };
+                bool ok = _blockchainRepository.ListChains(out List<Blockchain> chains);
+                if (!ok)
+                {
+                    _logger.LogInformation("Repository failed to retrieve local chains");
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Repository failed to retrive local chains",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "List command successful",
+                    Data = chains,
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during list command processing: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception occured during processing: {ex}",
+                };
+            }
         }
 
         private ControlResponse HandleRemoveCommand(Dictionary<string, object>? parameters)
         {
-            return new ControlResponse
+            if (parameters == null)
             {
-                Success = true,
-                Message = "Remove command received"
-            };
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
+                };
+            }
+            bool ok = parameters.TryGetValue("chainId", out object? chainId);
+            if (!ok || chainId == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
+                };
+            }
+            try
+            {
+                Guid id = (Guid)chainId;
+                ok = _blockchainRepository.RemoveChain(id);
+                if (!ok)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = $"Repository failed to delete local blockchain with id {id.ToString()}",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Removal successful",
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during remove command processing: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception occured during processing: {ex}",
+                };
+            }
         }
 
         private ControlResponse HandleCreateCommand(Dictionary<string, object>? parameters)
         {
-            return new ControlResponse
+            if (parameters == null)
             {
-                Success = true,
-                Message = "Create command received"
-            };
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Blockchain]blockchain'",
+                };
+            }
+            bool ok = parameters.TryGetValue("blockchain", out object? chain);
+            if (!ok || chain == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Blockchain]blockchain'",
+                };
+            }
+            try
+            {
+                Blockchain b = (Blockchain)chain;
+                ok = _blockchainRepository.Store(b);
+                if (!ok)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Repository failed to create a new chain",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Successfully created a new chain"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during create command processing: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception occured during processing: {ex}",
+                };
+            }
         }
 
         private ControlResponse HandleVerifyCommand(Dictionary<string, object>? parameters)
         {
-            return new ControlResponse
+            if (parameters == null)
             {
-                Success = true,
-                Message = "Verify command received"
-            };
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
+                };        
+            }
+            bool ok = parameters.TryGetValue("chainId", out object? id);
+            if (!ok || id == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
+                };  
+            }
+            try
+            {
+                Guid chainId = (Guid)id;
+                ok = _blockchainRepository.Verify(chainId);
+                if (!ok)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "The chain is invalid.",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "The chain is valid and not tampered with."
+                };
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError("Exception during verify command processing: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception occured during processing: {ex}",
+                };
+            }
         }
 
         private ControlResponse HandleFetchCommand(Dictionary<string, object>? parameters)
@@ -317,29 +519,119 @@ namespace TaxChain.Daemon.Services
 
         private ControlResponse HandleAddCommand(Dictionary<string, object>? parameters)
         {
-            return new ControlResponse
+            if (parameters == null)
             {
-                Success = true,
-                Message = "Add command received"
-            };
-        }
-
-        private ControlResponse HandlePopCommand(Dictionary<string, object>? parameters)
-        {
-            return new ControlResponse
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Transaction]transaction'",
+                };          
+            }
+            bool ok = parameters.TryGetValue("transaction", out object? t);
+            if (!ok || t == null)
             {
-                Success = true,
-                Message = "Pop command received"
-            };
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Transaction]transaction'",
+                };
+            }
+            ok = parameters.TryGetValue("chainId", out object? id);
+            if (!ok || id == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
+                };
+            }
+            try
+            {
+                Transaction transaction = (Transaction)t;
+                Guid chainId = (Guid)id;
+                ok = _blockchainRepository.EnqueueTransaction(chainId, transaction);
+                if (!ok)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Repository failed to add transaction.",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Successfully added transaction",
+                };
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError("Exception during add command processing: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception occured during processing: {ex}",
+                };
+            }
         }
 
         private ControlResponse HandleLedgerCommand(Dictionary<string, object>? parameters)
         {
-            return new ControlResponse
+            if (parameters == null)
             {
-                Success = true,
-                Message = "Ledger command received"
-            };
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
+                };
+            }
+            bool ok = parameters.TryGetValue("chainId", out object? id);
+            if (!ok || id == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
+                };
+            }
+            ok = parameters.TryGetValue("number", out object? n);
+            if (!ok || n == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely '[int]number'",
+                };  
+            }
+            try
+            {
+                Guid chainId = (Guid)id;
+                int number = (int)n;
+                ok = _blockchainRepository.Tail(chainId, number, out Block[] blocks);
+                if (!ok)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Repository failed to fetch chain tail",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Successfully fetched chain tail",
+                    Data = blocks,
+                };
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError("Exception during ledger command processing: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception occured during processing: {ex}",
+                };
+            }
         }
     }
 }
