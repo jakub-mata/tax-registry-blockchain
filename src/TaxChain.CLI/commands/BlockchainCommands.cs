@@ -201,9 +201,14 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         var properties = new Dictionary<string, object>();
-        if (settings.UserAddress != null)
-            properties.Add("taxpayerId", settings.UserAddress);
+        if (settings.UserAddress == null || settings.BlockchainId == null)
+        {
+            AnsiConsole.MarkupLine("[red]Failed to provide necessary options.[/]");
+            return 1;
+        }
+        properties.Add("taxpayerId", settings.UserAddress);
         properties.Add("verbose", settings.Verbose == true);
+        properties.Add("chainId", Guid.Parse(settings.BlockchainId));
 
         EnsureDaemonRunning();
         AnsiConsole.WriteLine("Sending a request for the gather command...");
@@ -221,7 +226,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
                 AnsiConsole.MarkupLine("[red]Daemon did not send any data. Try again later.[/]");
                 return 1;
             }
-            TaxpayerInformation? info = (TaxpayerInformation?)response.Data;
+            List<Transaction>? info = (List<Transaction>)response.Data;
             if (info == null)
             {
                 AnsiConsole.MarkupLine("[red]Could not parse received data.[/]");
@@ -239,12 +244,13 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
         }
     }
 
-    private static void DisplayTaxpayerTable(core.TaxpayerInformation data, bool verbose)
+    private static void DisplayTaxpayerTable(List<Transaction> data, bool verbose)
     {
-        AnsiConsole.MarkupLine($"ID: [green]{data.TaxpayerId}[/]");
-        AnsiConsole.MarkupLine($"Balance: [green]{data.Balance}[/]");
-        if (verbose && data.Transactions != null)
-            TableFactory.CreateTransactionsTable(data.Transactions);
+        foreach (Transaction t in data)
+        {
+            AnsiConsole.MarkupLine($"ID: [green]{t.TaxpayerId}[/]");
+            AnsiConsole.MarkupLine($"Amount: [green]{t.Amount}[/]");
+        }
     }
 }
 internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
@@ -261,6 +267,7 @@ internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
         var parameters = new Dictionary<string, object>()
         {
             {"number", settings.Number},
+            {"chainId", Guid.Parse(settings.BlockchainId)}
         };
         EnsureDaemonRunning();
         AnsiConsole.WriteLine($"Sending a request for a ledger of size {settings.Number}");
