@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TaxChain.core;
 
 namespace TaxChain.Daemon.Storage;
@@ -13,24 +14,18 @@ public interface IBlockchainRepository
     /// <returns>Bool: the success of the operation.</returns>
     public bool Store(Blockchain blockchain);
     /// <summary>
-    /// Appends the given block to the specified blockchain in local storage.
-    /// </summary>
-    /// <param name="chainId">The blockchain which is to be appended.</param>
-    /// <param name="block">The block to be appended.</param>
-    /// <returns>Bool: the success of the operation.</returns>
-    public bool Store(Guid chainId, Block block);
-    /// <summary>
     /// Adds a transaction into pending transaction of the given blockchain. These
     /// transactions are not a part of the blockchain. Only when mining starts can
     /// these transactions be retrieved and added to the blockchain.
     /// </summary>
     /// <param name="transaction">The transaction to be equeued.</param>
     /// <returns>Bool: the success of the operation.</returns>
-    public bool EnqueueTransaction(Transaction transaction);
+    public bool EnqueueTransaction(Guid chainId, Transaction transaction);
     /// <summary>
     /// Removes the last block of a blockchain.
     /// </summary>
-    /// <param name="chainId">The blockchain whose last block is to be removed.</param>
+    /// <param name="chainId">The blockchain where the pending tranactions goes after mining.</param>
+    /// <param name="transaction">Transaction to be stored</param>
     /// <returns>Bool: the success of the operation.</returns>
     public bool RemoveLastBlock(Guid chainId);
     /// <summary>
@@ -47,7 +42,7 @@ public interface IBlockchainRepository
     /// <param name="transaction">The returned transaction. If no transactions are pending,
     /// the returned value is null</param>
     /// <returns></returns>
-    public bool FetchPending(Guid chainId, out Transaction? transaction);
+    public bool FetchPending(Guid chainId, out Transaction transaction);
     /// <summary>
     /// Fetches n last blocks from a blockchain.
     /// </summary>
@@ -63,4 +58,9 @@ public interface IBlockchainRepository
     /// <param name="blocks">The fetched blocks in descending order</param>
     /// <returns>Bool: the success of the operation.</returns>
     public bool Fetch(Guid chainId, out Block[] blocks);
+    /// <summary>
+    /// Fetches all blockchains stored in the local database.
+    /// </summary>
+    /// <returns>Bool: the success of the operation.</returns>
+    public bool ListChains(out List<Blockchain> chains);
 }
