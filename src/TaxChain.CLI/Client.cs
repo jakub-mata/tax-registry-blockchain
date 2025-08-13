@@ -30,8 +30,6 @@ namespace TaxChain.CLI
                     .WithDescription("Lists all blockchains stored locally");
                 config.AddCommand<SyncCommand>("sync")
                     .WithDescription("Synchronizes blockchain(s) with the network");
-                config.AddCommand<RemoveCommand>("remove")
-                    .WithDescription("Removes a blockchain from local storage");
                 config.AddCommand<CreateCommand>("create")
                     .WithDescription("Creates a new blockchain");
                 config.AddCommand<FetchCommand>("fetch")
@@ -49,6 +47,8 @@ namespace TaxChain.CLI
                         .WithDescription("Get balances of all users");
                     blockchain.AddCommand<LedgerCommand>("ledger")
                         .WithDescription("Lists blocks in the blockchain");
+                    blockchain.AddCommand<RemoveCommand>("remove")
+                    .WithDescription("Removes a blockchain from local storage");
                 });
             });
 

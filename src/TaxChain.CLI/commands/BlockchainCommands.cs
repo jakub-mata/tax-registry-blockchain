@@ -25,52 +25,15 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
             AnsiConsole.MarkupLine("[red]Failed to parse provided chain id. If unsure, run the 'list' command.[/]");
             return 1;
         }
-        core.Transaction.TaxType tt = PromptTaxType();
-        core.Transaction.TaxStatus ts = PromptStatus();
         string taxpayerId = AnsiConsole.Prompt(
             new TextPrompt<string>("Type your taxpayer id:")
         );
         decimal amount = AnsiConsole.Prompt<decimal>(
             new TextPrompt<decimal>("Write the amount:")
         );
-        decimal tbase = AnsiConsole.Prompt<decimal>(
-            new TextPrompt<decimal>("Write the taxable base:")
-        );
-        decimal trate = AnsiConsole.Prompt<decimal>(
-            new TextPrompt<decimal>("Write the tax rate:")
-        );
-        int currYear = DateTime.Now.Year;
-        DateTime periodStart = PromptDateTime(
-            "Select the start of the tax period",
-            currYear - 50, currYear + 5
-        );
-        DateTime periodEnd = PromptDateTime(
-            "Select the end of the tax period",
-            currYear - 10, currYear + 50
-        );
-        DateTime dueDate = PromptDateTime(
-            "Select the tax due date",
-            currYear - 10, currYear + 50
-        );
-        string jurisdiction = AnsiConsole.Prompt<string>(
-            new TextPrompt<string>("Provide the jurisdiction:")
-        );
-        string notes = AnsiConsole.Prompt<string>(
-            new TextPrompt<string>("Add any notes you find necessary and hit [Enter] to finish.")
-        );
-        var transaction = new core.Transaction(){
-            TaxpayerId = taxpayerId,
-            Amount = amount,
-            TaxableBase = tbase,
-            TaxRate = trate,
-            TaxPeriodStart = periodStart,
-            TaxPeriodEnd = periodEnd,
-            DueDate = dueDate,
-            Jurisdiction = jurisdiction,
-            Status = ts,
-            Type = tt,
-            Notes = notes
-        };
+        var transaction = Transaction.Build()
+            .AddAmount(amount)
+            .AddTaxpayerId(taxpayerId);
         return await SendAddRequest(transaction, parsed);
     }
 
@@ -85,7 +48,7 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
         AnsiConsole.WriteLine("Sending provided transaction to the records...");
         try
         {
-            var response = await CLIClient.clientd.SendCommandAsync("add");
+            var response = await CLIClient.clientd.SendCommandAsync("add", properties);
             if (!response.Success)
             {
                 AnsiConsole.MarkupLine("[red]Failed to add block to taxchain.[/]");
@@ -103,91 +66,6 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
             return 1;
         }
     }
-
-    private static DateTime PromptDateTime(string promptText, int startYear, int endYear)
-    {
-        AnsiConsole.WriteLine(promptText);
-        var months = Enumerable.Range(1, 12);
-        var days = Enumerable.Range(1, 31);
-        var years = Enumerable.Range(startYear, endYear);
-        var month = AnsiConsole.Prompt<int>(
-            new SelectionPrompt<int>()
-                .Title("Select the month:")
-                .PageSize(12)
-                .AddChoices<int>(months)
-        );
-        var day = AnsiConsole.Prompt<int>(
-             new SelectionPrompt<int>()
-                 .Title("Select the day:")
-                 .PageSize(12)
-                 .AddChoices<int>(days)
-         );
-        var year = AnsiConsole.Prompt<int>(
-            new SelectionPrompt<int>()
-                .Title("Select the year:")
-                .PageSize(10)
-                .MoreChoicesText("Move up or down to show more options")
-                .AddChoices<int>(years)
-        );
-        return new DateTime(year, month, day);
-    }
-
-    private static core.Transaction.TaxType PromptTaxType()
-    {
-        var tt = AnsiConsole.Prompt(
-            new SelectionPrompt<core.Transaction.TaxType>()
-                .Title("Choose tax type:")
-                .PageSize(10)
-                .MoreChoicesText("Move up and down to reveal more types.")
-                .AddChoices([
-                    core.Transaction.TaxType.CapitalGainsTax,
-                    core.Transaction.TaxType.CarbonTax,
-                    core.Transaction.TaxType.CorporateIncomeTax,
-                    core.Transaction.TaxType.DividendTax,
-                    core.Transaction.TaxType.ExciseTax,
-                    core.Transaction.TaxType.FuelTax,
-                    core.Transaction.TaxType.GiftTax,
-                    core.Transaction.TaxType.InheritanceTax,
-                    core.Transaction.TaxType.InterestIncomeTax,
-                    core.Transaction.TaxType.LuxuryTax,
-                    core.Transaction.TaxType.MedicareTax,
-                    core.Transaction.TaxType.PayrollTax,
-                    core.Transaction.TaxType.PersonalIncomeTax,
-                    core.Transaction.TaxType.PropertyTax,
-                    core.Transaction.TaxType.SalesTax,
-                    core.Transaction.TaxType.ServiceTax,
-                    core.Transaction.TaxType.SinTax,
-                    core.Transaction.TaxType.SocialSecurityTax,
-                    core.Transaction.TaxType.SugarTax,
-                    core.Transaction.TaxType.UnemploymentTax,
-                    core.Transaction.TaxType.VAT,
-                    core.Transaction.TaxType.VehicleTax,
-                    core.Transaction.TaxType.WealthTax,
-                    core.Transaction.TaxType.WorkersCompensation,
-                ])
-        );
-        return tt;
-    }
-
-    private static core.Transaction.TaxStatus PromptStatus()
-    {
-        var taxpayerId = AnsiConsole.Prompt(
-            new SelectionPrompt<core.Transaction.TaxStatus>()
-                .Title("Choose tax status:")
-                .PageSize(7)
-                .MoreChoicesText("Move up and down to reveal more types.")
-                .AddChoices([
-                    core.Transaction.TaxStatus.Delinquent,
-                    core.Transaction.TaxStatus.Disputed,
-                    core.Transaction.TaxStatus.Filed,
-                    core.Transaction.TaxStatus.Paid,
-                    core.Transaction.TaxStatus.PartiallyPaid,
-                    core.Transaction.TaxStatus.Refunded,
-                    core.Transaction.TaxStatus.UnderAudit,
-                ])
-        );
-        return taxpayerId;
-    }
 }
 internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
 {
@@ -195,8 +73,6 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
     {
         [CommandOption("-u|--user <USER_ADDRESS>")]
         public string? UserAddress { get; set; }
-        [CommandOption("-v|--verbose")]
-        public bool? Verbose { get; set; }
     }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
@@ -207,7 +83,6 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
             return 1;
         }
         properties.Add("taxpayerId", settings.UserAddress);
-        properties.Add("verbose", settings.Verbose == true);
         properties.Add("chainId", Guid.Parse(settings.BlockchainId));
 
         EnsureDaemonRunning();
@@ -233,7 +108,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
                 return 1;
             }
 
-            DisplayTaxpayerTable(info, settings.Verbose == true);
+            DisplayTaxpayerTable(info);
             return 0;
         }
         catch (Exception ex)
@@ -244,7 +119,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
         }
     }
 
-    private static void DisplayTaxpayerTable(List<Transaction> data, bool verbose)
+    private static void DisplayTaxpayerTable(List<Transaction> data)
     {
         foreach (Transaction t in data)
         {
@@ -292,11 +167,57 @@ internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
                 return 1;
             }
             AnsiConsole.Write(TableFactory.CreateLedgerTable(blocks));
+            AnsiConsole.WriteLine();
             return 0;
         }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine("[red]Exception occured while fetching the ledger.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+    }
+}
+
+internal sealed class RemoveCommand : BaseAsyncCommand<RemoveCommand.Settings>
+{
+    public class Settings : BlockchainSettings { }
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        if (settings.BlockchainId == "")
+        {
+            AnsiConsole.MarkupLine("[red]Chain Id has not been provided[/]");
+            return 1;
+        }
+
+        EnsureDaemonRunning();
+        AnsiConsole.MarkupLine("[grey]Calling daemon to remove the blockchain...[/]");
+        try
+        {
+            bool ok = Guid.TryParse(settings.BlockchainId, out Guid parsed);
+            if (!ok)
+            {
+                AnsiConsole.MarkupLine("[red]Failed to parse provided chain Id[/]");
+                return 1;
+            }
+            var parameters = new Dictionary<string, object>()
+            {
+                {"chainId", parsed},
+            };
+            var response = await CLIClient.clientd.SendCommandAsync("remove", parameters);
+
+            if (!response.Success)
+            {
+                AnsiConsole.Markup("[red]Attempt to remove a blockchain by the daemon failed.[/]");
+                AnsiConsole.WriteLine($"Daemon's response: {response.Message}");
+                return 1;
+            }
+            AnsiConsole.MarkupLine($"[green]Blockchain with id {settings.BlockchainId} removed successfully.[/]");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]Failed to remove blockchain.[/]");
             AnsiConsole.WriteException(ex);
             return 1;
         }

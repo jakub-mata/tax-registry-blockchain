@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
@@ -15,7 +16,7 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         EnsureDaemonRunning();
-        AnsiConsole.MarkupLine("Sending a list request to the chain deamon.[/]");
+        AnsiConsole.MarkupLine("Sending a list request to the chain deamon.");
         try
         {
             Blockchain[]? fetched = await GetAllChains();
@@ -27,13 +28,15 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
                     return 1;
                 }
             string[] columns = { "chainId", "name", "rewardAmount", "difficulty" };
-            string[,] rows = new string[fetched.Length, 4];
+            string[][] rows = new string[fetched.Length][];
             for (int i = 0; i < fetched.Length; ++i)
             {
-                rows[i, 0] = fetched[i].Id.ToString();
-                rows[i, 1] = fetched[i].Name.ToString();
-                rows[i, 2] = fetched[i].RewardAmount.ToString();
-                rows[i, 3] = fetched[i].Difficulty.ToString();
+                rows[i] = [
+                    fetched[i].Id.ToString(),
+                    fetched[i].Name.ToString(),
+                    fetched[i].RewardAmount.ToString(),
+                    fetched[i].Difficulty.ToString()
+                ];
             }
             AnsiConsole.Write(TableFactory.CreateTable(columns, rows));
             return 0;
@@ -48,19 +51,21 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
 
     internal static async Task<Blockchain[]?> GetAllChains()
     {
-        AnsiConsole.MarkupLine("Sending a list request to the chain deamon.[/]");
+        AnsiConsole.MarkupLine("Sending a list request to the chain deamon.");
         try
         {
             var response = await CLIClient.clientd.SendCommandAsync("list");
             if (!response.Success)
             {
-                AnsiConsole.MarkupLine("Attempt to list blockchains by the daemon failed.[/]");
-                AnsiConsole.MarkupLine($"Daemon's response: {response.Message}[/]");
+                AnsiConsole.MarkupLine("Attempt to list blockchains by the daemon failed.");
+                AnsiConsole.MarkupLine($"Daemon's response: {response.Message}");
                 return null;
             }
             if (response.Data != null)
             {
-                var blockchains = (Blockchain[])response.Data;
+                var blockchains = (response.Data is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Blockchain[]>(jsonElement.GetRawText())
+                    :(Blockchain[])response.Data;
                 return blockchains;
             }
             AnsiConsole.MarkupLine("[yellow]No data returned by the daemon.[/]");
@@ -71,54 +76,6 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
             AnsiConsole.MarkupLine("[red]Failed to list blockchains.[/]");
             AnsiConsole.WriteException(ex);
             return null;
-        }
-    }
-}
-internal sealed class RemoveCommand : BaseAsyncCommand<RemoveCommand.Settings>
-{
-    public class Settings : CommandSettings
-    { 
-        [CommandOption("-c|--chain <CHAIN_ID>")]
-        public string? ChainId { get; set; }
-    }
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
-    {
-        if (settings.ChainId == null)
-        {
-            AnsiConsole.MarkupLine("[red]Chain Id has not been provided[/]");
-            return 1;
-        }
-
-        EnsureDaemonRunning();
-        AnsiConsole.MarkupLine("[grey]Calling daemon to remove the blockchain...[/]");
-        try
-        {
-            bool ok = Guid.TryParse(settings.ChainId, out Guid parsed);
-            if (!ok)
-            {
-                AnsiConsole.MarkupLine("[red]Failed to parse provided chain Id[/]");
-                return 1;
-            }
-            var parameters = new Dictionary<string, Guid>()
-            {
-                {"chainId", parsed},
-            };
-            var response = await CLIClient.clientd.SendCommandAsync("remove");
-
-            if (!response.Success)
-            {
-                AnsiConsole.Markup("[red]Attempt to list blockchains by the daemon failed.[/]");
-                AnsiConsole.WriteLine($"Daemon's response: {response.Message}");
-                return 1;
-            }
-            AnsiConsole.MarkupLine($"[green]Blockchain with id {settings.ChainId} removed successfully.[/]");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine("[red]Failed to remove blockchain.[/]");
-            AnsiConsole.WriteException(ex);
-            return 1;
         }
     }
 }
@@ -151,17 +108,19 @@ internal sealed class CreateCommand : BaseAsyncCommand<CreateCommand.Settings>
             var response = await CLIClient.clientd.SendCommandAsync("create", properties);
             if (!response.Success)
             {
-                AnsiConsole.Markup("[red]Attempt to create a new blockchain by the daemon failed.[/]");
+                AnsiConsole.MarkupLine("[red]Attempt to create a new blockchain by the daemon failed.[/]");
                 AnsiConsole.WriteLine($"Daemon's response: {response.Message}");
                 return 1;
             }
             if (response.Data == null)
             {
-                AnsiConsole.Markup("[yellow]Blockchain created but no id received. Should you wish to know its id, run the 'list' command.[/]");
+                AnsiConsole.MarkupLine("[yellow]Blockchain created but no id received. Should you wish to know its id, run the 'list' command.[/]");
                 return 0;
             }
-            Guid id = (Guid)response.Data;
-            Console.Markup($"[green]Taxchain creation successful!. Here's its id: {id.ToString()}[/]");
+            Guid id = (response.Data is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement.GetRawText())
+                    : (Guid)response.Data;
+            Console.MarkupLine($"[green]Taxchain creation successful!. Here's its id: {id.ToString()}[/]");
             return 0;
         }
         catch (Exception ex)
