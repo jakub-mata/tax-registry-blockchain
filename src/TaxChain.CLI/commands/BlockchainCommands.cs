@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -31,9 +30,10 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
         decimal amount = AnsiConsole.Prompt<decimal>(
             new TextPrompt<decimal>("Write the amount:")
         );
-        var transaction = Transaction.Build()
-            .AddAmount(amount)
-            .AddTaxpayerId(taxpayerId);
+        var transaction = new Transaction(
+            taxpayerId,
+            amount
+        );
         return await SendAddRequest(transaction, parsed);
     }
 
