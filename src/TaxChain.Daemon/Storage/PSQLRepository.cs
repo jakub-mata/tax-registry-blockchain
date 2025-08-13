@@ -99,7 +99,7 @@ public class PGSQLRepository : IBlockchainRepository
     {
         try
         {
-            using var connection = new NpgsqlConnection(adminConnectionString);
+            using var connection = GetConnection();
             connection.Open();
 
             _logger.LogDebug("Checking whether the DB exists...");
@@ -125,11 +125,11 @@ public class PGSQLRepository : IBlockchainRepository
     {
         try
         {
-            using var connection = new NpgsqlConnection();
+            using var connection = GetConnection();
             connection.Open();
             using var t = connection.BeginTransaction();
 
-            bool ok = StorePendingTransaction(chainId, null, transaction, connection, t);
+            bool ok = StorePendingTransaction(chainId, transaction, connection, t);
             if (!ok)
             {
                 _logger.LogError("Failed to store pending transaction");
@@ -354,21 +354,16 @@ public class PGSQLRepository : IBlockchainRepository
         }
     }
 
-    private bool StorePendingTransaction(Guid chainId, int? blockId, Transaction t, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    private bool StorePendingTransaction(Guid chainId, Transaction t, NpgsqlConnection connection, NpgsqlTransaction transaction)
     {
-        if (blockId == null)
-        {
-            return false;
-        }
         try
         {
             var tSql = @$"
-            INSERT INTO pending_transactions (id, chain_id, block_id, taxpayer_id, amount)
-            VALUES (@id, @chain_id, @block_id, @taxpayer_id, @amount)";
+            INSERT INTO pending_transactions (id, chain_id, amount, taxpayer_id)
+            VALUES (@id, @chain_id, @amount, @taxpayer_id)";
             using var tCommand = new NpgsqlCommand(tSql, connection, transaction);
             tCommand.Parameters.AddWithValue("id", t.ID);
             tCommand.Parameters.AddWithValue("chain_id", chainId);
-            tCommand.Parameters.AddWithValue("block_id", blockId);
             tCommand.Parameters.AddWithValue("taxpayer_id", t.TaxpayerId);
             tCommand.Parameters.AddWithValue("amount", t.Amount);
 
@@ -571,7 +566,7 @@ public class PGSQLRepository : IBlockchainRepository
     {
         try
         {
-            using var connection = new NpgsqlConnection();
+            using var connection = GetConnection();
             connection.Open();
             using var transaction = connection.BeginTransaction();
             int latestId = GetBlockchainLatestBlock(chainId, connection, transaction);
