@@ -556,8 +556,12 @@ namespace TaxChain.Daemon.Services
             }
             try
             {
-                Transaction transaction = (Transaction)t;
-                Guid chainId = (Guid)id;
+                Transaction transaction = (t is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Transaction>(jsonElement.GetRawText())
+                    :(Transaction)t;
+                Guid chainId = (id is JsonElement jsonElement1)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement1.GetRawText())
+                    : (Guid)id;
                 ok = _blockchainRepository.EnqueueTransaction(chainId, transaction);
                 if (!ok)
                 {
