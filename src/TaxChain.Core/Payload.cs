@@ -5,25 +5,18 @@ namespace TaxChain.core;
 
 public struct Transaction
 {
-    public Guid ID;
+    public Guid ID { get; set; }
     public string TaxpayerId { get; set; }          // Tax ID or SSN
     public decimal Amount { get; set; }             // Tax amount
 
-    public static Transaction Build()
+    public Transaction(
+        string taxpayerId,
+        decimal amount
+    )
     {
-        Transaction t = new Transaction();
-        t.ID = new Guid();
-        return t;
-    }
-    public Transaction AddAmount(decimal amount)
-    {
+        ID = Guid.NewGuid();
+        TaxpayerId = taxpayerId;
         Amount = amount;
-        return this;
-    }
-    public Transaction AddTaxpayerId(string payerId)
-    {
-        TaxpayerId = payerId;
-        return this;
     }
     public Transaction(
         Guid id,
