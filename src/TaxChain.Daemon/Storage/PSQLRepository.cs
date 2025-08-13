@@ -1,10 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
-using System.IO;
-using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using TaxChain.core;
@@ -26,7 +21,7 @@ public class PGSQLRepository : IBlockchainRepository
         var password = Environment.GetEnvironmentVariable("TAXCHAIN_DB_PASSWORD") ?? "postgres";
         _databaseName = Environment.GetEnvironmentVariable("TAXCHAIN_DB_NAME") ?? "taxchain";
 
-        _connectionString = $"Host={host};Port={port};Username={username};Password={password};Database={_databaseName}";
+        _connectionString = $"Host={host};Port={port};Username={username};Password={password};Database={_databaseName};Include Error Detail=true";
     }
 
     public void Initialize()
@@ -47,13 +42,13 @@ public class PGSQLRepository : IBlockchainRepository
                 name TEXT NOT NULL,
                 reward INTEGER DEFAULT 0,
                 difficulty INTEGER DEFAULT 1,
-                latest_block INTEGER DEFAULT NULL,
+                latest_block INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );",
 
             @"CREATE TABLE IF NOT EXISTS blocks (
                 id SERIAL PRIMARY KEY,
-                chain_id UUID REFERENCES chains(id),
+                chain_id UUID REFERENCES chains(id) ON DELETE CASCADE,
                 prev_hash TEXT NOT NULL,
                 hash TEXT NOT NULL,
                 nonce INTEGER NOT NULL,
@@ -62,31 +57,18 @@ public class PGSQLRepository : IBlockchainRepository
             );",
 
             @"CREATE TABLE IF NOT EXISTS transactions (
-                chain_id UUID REFERENCES chains(id),
-                block_id INTEGER REFERENCES blocks(id),
-                identifier UUID UNIQUE,
+                id UUID PRIMARY KEY,
+                chain_id UUID REFERENCES chains(id) ON DELETE CASCADE,
+                block_id INTEGER REFERENCES blocks(id) ON DELETE CASCADE,
                 taxpayer_id TEXT NOT NULL,
-                jurisdiction TEXT NOT NULL,
-                amount DECIMAL(18,8) NOT NULL,
-                taxable_base DECIMAL(18,8),
-                tax_rate DECIMAL(18,8),
-                tax_type TEXT NOT NULL,
-                status TEXT NOT NULL,
-                notes TEXT,
-                period_start TIMESTAMP NOT NULL,
-                period_end TIMESTAMP NOT NULL,
-                due_date TIMESTAMP NOT NULL,
-                payment_date TIMESTAMP
+                amount DECIMAL(18,8) NOT NULL
             );",
 
             @"CREATE TABLE IF NOT EXISTS pending_transactions (
                 id UUID PRIMARY KEY,
-                chain_id UUID REFERENCES chains(id),
-                sender TEXT,
-                receiver TEXT,
+                chain_id UUID REFERENCES chains(id) ON DELETE CASCADE,
                 amount DECIMAL(18,8) NOT NULL,
-                tax_type TEXT NOT NULL,
-                data JSONB,
+                taxpayer_id TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );"
         };
@@ -120,12 +102,14 @@ public class PGSQLRepository : IBlockchainRepository
             using var connection = new NpgsqlConnection(adminConnectionString);
             connection.Open();
 
+            _logger.LogDebug("Checking whether the DB exists...");
             using var cmd = new NpgsqlCommand("SELECT 1 FROM pg_database WHERE datname = @dbName", connection);
             cmd.Parameters.AddWithValue("dbName", _databaseName);
 
             var result = cmd.ExecuteScalar();
             if (result == null)
             {
+                _logger.LogInformation("Creating the database anew");
                 using var createCmd = new NpgsqlCommand($"CREATE DATABASE \"{_databaseName}\"", connection);
                 createCmd.ExecuteNonQuery();
                 _logger.LogInformation($"Database '{_databaseName}' created successfully.");
@@ -175,10 +159,12 @@ public class PGSQLRepository : IBlockchainRepository
             connection.Open();
             using var t = connection.BeginTransaction();
             var fetchSQL = @"
-                SELECT (id, created_at)
+                SELECT (id, chain_id, created_at)
                 FROM pending_transactions
+                WHERE chain_id=@chain_id;
             ";
             using var fetchCmd = new NpgsqlCommand(fetchSQL, connection, t);
+            fetchCmd.Parameters.AddWithValue("chain_id", chainId);
             var reader = fetchCmd.ExecuteReader();
             var results = new List<FetchedT>();
             // Sort results based on created_at field
@@ -196,9 +182,9 @@ public class PGSQLRepository : IBlockchainRepository
             FetchedT last = results[-1];
             // Fetch last
             var lastSQL = @"
-                SELECT (id, chain_id, block_id, taxpayer_id, jurisdiction, amount, taxable_base, tax_rate, tax_type, status, notes, period_start, period_end, due_date, payment_date)
-                FROM transactions
-                WHERE id=@id, chain_id=@chainId; 
+                SELECT (id, chain_id, block_id, taxpayer_id, amount)
+                FROM pending_transactions
+                WHERE id=@id, chain_id=@chainId;
             ";
             using var lastCmd = new NpgsqlCommand(lastSQL, connection, t);
             lastCmd.Parameters.AddWithValue("id", last.Id);
@@ -206,18 +192,9 @@ public class PGSQLRepository : IBlockchainRepository
             var result = lastCmd.ExecuteReader();
             if (reader.Read())
             {
+                transaction.ID = reader.GetGuid(reader.GetOrdinal("id"));
                 transaction.Amount = reader.GetDecimal(reader.GetOrdinal("amount"));
-                transaction.DueDate = reader.GetDateTime(reader.GetOrdinal("due_date"));
-                transaction.Jurisdiction = reader.GetString(reader.GetOrdinal("jurisdiction"));
-                transaction.PaymentDate = reader.GetDateTime(reader.GetOrdinal("payment_date"));
-                transaction.TaxableBase = reader.IsDBNull(reader.GetOrdinal("taxable_base")) ? null : reader.GetDecimal(reader.GetOrdinal("taxable_base"));
-                transaction.TaxRate = reader.IsDBNull(reader.GetOrdinal("tax_rate")) ? null : reader.GetDecimal(reader.GetOrdinal("tax_rate"));
-                transaction.TaxPeriodStart = reader.GetDateTime(reader.GetOrdinal("period_start"));
-                transaction.TaxPeriodEnd = reader.GetDateTime(reader.GetOrdinal("period_end"));
                 transaction.TaxpayerId = reader.GetString(reader.GetOrdinal("taxpayer_id"));
-                transaction.Status = (Transaction.TaxStatus)reader.GetInt32(reader.GetOrdinal("status"));
-                transaction.Notes = reader.IsDBNull(reader.GetOrdinal("notes")) ? null : reader.GetString(reader.GetOrdinal("notes"));
-                transaction.Type = (Transaction.TaxType)reader.GetInt32(reader.GetOrdinal("tax_type"));
             }
             t.Commit();
             return true;
@@ -304,7 +281,7 @@ public class PGSQLRepository : IBlockchainRepository
     private bool SetUpGenesisBlock(Guid chainId, NpgsqlConnection conn, NpgsqlTransaction t)
     {
         var genSql = @"
-            INSERT INTO (chain_id, prev_hash, hash, nonce)
+            INSERT INTO blocks (chain_id, prev_hash, hash, nonce)
             VALUES (@chain_id, @prev_hash, @hash, @nonce)
         ";
         var genCmd = new NpgsqlCommand(genSql, conn, t);
@@ -349,25 +326,6 @@ public class PGSQLRepository : IBlockchainRepository
         }
     }
 
-    private bool DoesBlockchainExist(Guid chainId, NpgsqlConnection connection, NpgsqlTransaction transaction)
-    {
-        try
-        {
-            var checkSql = @"
-                SELECT EXISTS(SELECT 1 FROM chains WHERE id=@id);
-            ";
-            var checkCmd = new NpgsqlCommand(checkSql, connection, transaction);
-            checkCmd.Parameters.AddWithValue("id", chainId);
-            var result = checkCmd.ExecuteScalar();
-            return result is bool exists && exists;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Failed to check blockchain exists: {ex}");
-            return false;
-        }
-    }
-
     private bool StoreTransaction(Guid chainId, int? blockId, Transaction t, NpgsqlConnection connection, NpgsqlTransaction transaction)
     {
         if (blockId == null)
@@ -377,24 +335,14 @@ public class PGSQLRepository : IBlockchainRepository
         try
         {
             var tSql = @$"
-            INSERT INTO transactions (chain_id, block_id, identifier, taxpayer_id, jurisdiction, amount, taxable_base, tax_rate, tax_type, status, notes, period_start, period_end, due_date, payment_date)
-            VALUES (@chain_id, @block_id, @taxpayer_id, @jurisdiction, @amount, @taxable_base, @tax_rate, @tax_type, @status, @notes, @period_start, @period_end, @due_date, @payment_date)";
+            INSERT INTO transactions (id, chain_id, block_id, taxpayer_id, amount)
+            VALUES (@id, @chain_id, @block_id, @taxpayer_id, @amount)";
             using var tCommand = new NpgsqlCommand(tSql, connection, transaction);
             tCommand.Parameters.AddWithValue("chain_id", chainId);
             tCommand.Parameters.AddWithValue("block_id", blockId);
-            tCommand.Parameters.AddWithValue("identifier", new Guid());
+            tCommand.Parameters.AddWithValue("id", t.ID);
             tCommand.Parameters.AddWithValue("taxpayer_id", t.TaxpayerId);
-            tCommand.Parameters.AddWithValue("jurisdiction", t.Jurisdiction);
             tCommand.Parameters.AddWithValue("amount", t.Amount);
-            tCommand.Parameters.AddWithValue("taxable_base", t.TaxableBase == null ? DBNull.Value : t.TaxableBase);
-            tCommand.Parameters.AddWithValue("tax_rate", t.TaxRate == null ? DBNull.Value : t.TaxRate);
-            tCommand.Parameters.AddWithValue("tax_type", t.Type);
-            tCommand.Parameters.AddWithValue("status", t.Status);
-            tCommand.Parameters.AddWithValue("notes", t.Notes == null ? DBNull.Value : t.Notes);
-            tCommand.Parameters.AddWithValue("period_start", t.TaxPeriodStart);
-            tCommand.Parameters.AddWithValue("period_end", t.TaxPeriodEnd);
-            tCommand.Parameters.AddWithValue("due_date", t.DueDate);
-            tCommand.Parameters.AddWithValue("payment_date", t.PaymentDate);
 
             tCommand.ExecuteNonQuery();
             return true;
@@ -414,26 +362,15 @@ public class PGSQLRepository : IBlockchainRepository
         }
         try
         {
-            Guid tID = new Guid();
             var tSql = @$"
-            INSERT INTO pending_transctions (id, chain_id, block_id, taxpayer_id, jurisdiction, amount, taxable_base, tax_rate, tax_type, status, notes, period_start, period_end, due_date, payment_date)
-            VALUES (@id, @chain_id, @block_id, @taxpayer_id, @jurisdiction, @amount, @taxable_base, @tax_rate, @tax_type, @status, @notes, @period_start, @period_end, @due_date, @payment_date)";
+            INSERT INTO pending_transactions (id, chain_id, block_id, taxpayer_id, amount)
+            VALUES (@id, @chain_id, @block_id, @taxpayer_id, @amount)";
             using var tCommand = new NpgsqlCommand(tSql, connection, transaction);
-            tCommand.Parameters.AddWithValue("id", tID);
+            tCommand.Parameters.AddWithValue("id", t.ID);
             tCommand.Parameters.AddWithValue("chain_id", chainId);
             tCommand.Parameters.AddWithValue("block_id", blockId);
             tCommand.Parameters.AddWithValue("taxpayer_id", t.TaxpayerId);
-            tCommand.Parameters.AddWithValue("jurisdiction", t.Jurisdiction);
             tCommand.Parameters.AddWithValue("amount", t.Amount);
-            tCommand.Parameters.AddWithValue("taxable_base", t.TaxableBase == null ? DBNull.Value : t.TaxableBase);
-            tCommand.Parameters.AddWithValue("tax_rate", t.TaxRate == null ? DBNull.Value : t.TaxRate);
-            tCommand.Parameters.AddWithValue("tax_type", t.Type);
-            tCommand.Parameters.AddWithValue("status", t.Status);
-            tCommand.Parameters.AddWithValue("notes", t.Notes == null ? DBNull.Value : t.Notes);
-            tCommand.Parameters.AddWithValue("period_start", t.TaxPeriodStart);
-            tCommand.Parameters.AddWithValue("period_end", t.TaxPeriodEnd);
-            tCommand.Parameters.AddWithValue("due_date", t.DueDate);
-            tCommand.Parameters.AddWithValue("payment_date", t.PaymentDate);
 
             tCommand.ExecuteNonQuery();
             return true;
@@ -530,7 +467,7 @@ public class PGSQLRepository : IBlockchainRepository
                     hash,
                     nonce,
                     timestamp,
-                    []
+                    new()
                 );
 
                 return block;
@@ -580,7 +517,7 @@ public class PGSQLRepository : IBlockchainRepository
                     hash,
                     nonce,
                     timestamp,
-                    []
+                    new()
                 );
 
                 return block;
@@ -605,24 +542,22 @@ public class PGSQLRepository : IBlockchainRepository
         {
             using var connection = GetConnection();
             connection.Open();
-            using var t = connection.BeginTransaction();
 
             var lSQL = @"
-                SELECT (id, name, reward, difficulty)
+                SELECT id, name, reward, difficulty
                 FROM chains;
             ";
-            var lCommand = new NpgsqlCommand(lSQL, connection, t);
-            var result = lCommand.ExecuteReader();
+            var lCommand = new NpgsqlCommand(lSQL, connection);
+            using var result = lCommand.ExecuteReader();
             while (result.Read())
             {
                 Guid id = result.GetGuid(result.GetOrdinal("id"));
-                string name = result.GetName(result.GetOrdinal("name"));
+                string name = result.GetString(result.GetOrdinal("name"));
                 float reward = result.GetFloat(result.GetOrdinal("reward"));
                 int diff = result.GetInt32(result.GetOrdinal("difficulty"));
 
                 chains.Add(new Blockchain(id, name, reward, diff));
             }
-            t.Commit();
             return true;
         }
         catch (Exception ex)
@@ -691,7 +626,7 @@ public class PGSQLRepository : IBlockchainRepository
             conn.Open();
             using var t = conn.BeginTransaction();
             string taxpayerSql = @"
-            SELECT (chain_id, block_id, taxpayer_id, jurisdiction, amount, taxable_base, tax_rate, tax_type, status, notes, period_start, period_end, due_date, payment_date)
+            SELECT (id, chain_id, block_id, taxpayer_id, jurisdiction, amount, taxable_base, tax_rate, tax_type, status, notes, period_start, period_end, due_date, payment_date)
             FROM transactions
             WHERE chain_id=@chain_id, taxpayer_id=@taxpayer_id;";
             var payerCmd = new NpgsqlCommand(taxpayerSql, conn, t);
@@ -702,19 +637,9 @@ public class PGSQLRepository : IBlockchainRepository
             if (reader.Read())
             {
                 Transaction curr = new();
+                curr.ID = reader.GetGuid(reader.GetOrdinal("id"));
                 curr.Amount = reader.GetDecimal(reader.GetOrdinal("amount"));
-                curr.DueDate = reader.GetDateTime(reader.GetOrdinal("due_date"));
-                curr.Jurisdiction = reader.GetString(reader.GetOrdinal("jurisdiction"));
-                curr.PaymentDate = reader.GetDateTime(reader.GetOrdinal("payment_date"));
-                curr.TaxableBase = reader.IsDBNull(reader.GetOrdinal("taxable_base")) ? null : reader.GetDecimal(reader.GetOrdinal("taxable_base"));
-                curr.TaxRate = reader.IsDBNull(reader.GetOrdinal("tax_rate")) ? null : reader.GetDecimal(reader.GetOrdinal("tax_rate"));
-                curr.TaxPeriodStart = reader.GetDateTime(reader.GetOrdinal("period_start"));
-                curr.TaxPeriodEnd = reader.GetDateTime(reader.GetOrdinal("period_end"));
                 curr.TaxpayerId = reader.GetString(reader.GetOrdinal("taxpayer_id"));
-                curr.Status = (Transaction.TaxStatus)reader.GetInt32(reader.GetOrdinal("status"));
-                curr.Notes = reader.IsDBNull(reader.GetOrdinal("notes")) ? null : reader.GetString(reader.GetOrdinal("notes"));
-                curr.Type = (Transaction.TaxType)reader.GetInt32(reader.GetOrdinal("tax_type"));
-
                 transactions.Add(curr);
             }
             return true;
@@ -725,5 +650,126 @@ public class PGSQLRepository : IBlockchainRepository
             _logger.LogError($"Exception during gathering taxpayer information: {ex}");
             return false;
         }
+    }
+
+    public AppendResult AppendBlock(Block block)
+    {
+        try
+        {
+            using var conn = new NpgsqlConnection();
+            conn.Open();
+            using var t = conn.BeginTransaction();
+
+            var chainSql = @"
+                SELECT (id, difficulty, latest_block)
+                FROM chains
+                WHERE id=@id;
+            ";
+            var chainCmd = new NpgsqlCommand(chainSql, conn, t);
+            chainCmd.Parameters.AddWithValue("id", block.ChainId);
+            var reader = chainCmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                _logger.LogWarning("Failed to found blockchain; cannot append a new block");
+                return AppendResult.BlockchainUndefined;
+            }
+            int difficulty = reader.GetInt32(reader.GetOrdinal("difficulty"));
+            int latest_block = reader.GetInt32(reader.GetOrdinal("latest_block"));
+            if (!IsBlockValid(block, difficulty))
+            {
+                _logger.LogWarning("Block to append is not valid");
+                return AppendResult.DigestMismatch;
+            }
+
+            if (!DoesPrevHashMatch(block, latest_block, conn, t))
+            {
+                _logger.LogWarning("Prev hash does not match hash of latest block");
+                return AppendResult.PrevHashMismatch;
+            }
+
+            if (!IsTransactionUnique(block.Payload.ID, conn, t))
+            {
+                _logger.LogWarning("Transaction is already stored, stop inserting to avoid duplicates");
+                return AppendResult.AlreadyIn;
+            }
+
+            int blockId = latest_block + 1;
+            bool ok = StoreTransaction(block.ChainId, blockId, block.Payload, conn, t);
+            if (!ok)
+            {
+                _logger.LogError("Failed to store new block");
+                return AppendResult.DBFail;
+            }
+            ok = StoreBlock(block, conn, t);
+            if (!ok)
+            {
+                _logger.LogError("Failed to store transaction");
+                return AppendResult.DBFail;
+            }
+            UpdateLatestBlock(block.ChainId, blockId, conn, t);
+            return AppendResult.Success;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Exception during appending block information: {e}");
+            return AppendResult.Exception; 
+        }
+    }
+
+    private bool IsBlockValid(Block b, int difficulty)
+    {
+        for (int i = 0; i < difficulty; ++i)
+        {
+            if (b.Hash[i] != '0')
+                return false;
+        }
+        return b.Digest() == b.Hash;
+    }
+
+    private bool DoesPrevHashMatch(Block b, int latestBlock, NpgsqlConnection conn, NpgsqlTransaction t)
+    {
+        try
+        {
+            Block? last = GetBlock(b.ChainId, latestBlock, conn, t);
+            if (last == null)
+                return false;
+            return last.Hash == b.PreviousHash;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Exception during prev hash comparison: {e}", e);
+            return false;
+        }
+    }
+
+    private bool IsTransactionUnique(Guid transactionId, NpgsqlConnection conn, NpgsqlTransaction t)
+    {
+        try
+        {
+            var existSQL = "SELECT EXISTS(SELECT 1 FROM transactions WHERE id=@id);";
+            var existCmd = new NpgsqlCommand(existSQL, conn, t);
+            existCmd.Parameters.AddWithValue("id", transactionId);
+            object? result = existCmd.ExecuteScalar();
+            return result is bool exists && exists;
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Exception during checking for transaction uniqueness: {e}", e);
+            return false;
+        }
+    }
+
+    private bool StoreBlock(Block b, NpgsqlConnection conn, NpgsqlTransaction t)
+    {
+        var genSql = @"
+            INSERT INTO blocks (chain_id, prev_hash, hash, nonce)
+            VALUES (@chain_id, @prev_hash, @hash, @nonce)
+        ";
+        var genCmd = new NpgsqlCommand(genSql, conn, t);
+        genCmd.Parameters.AddWithValue("chain_id", b.ChainId);
+        genCmd.Parameters.AddWithValue("prev_hash", b.PreviousHash);
+        genCmd.Parameters.AddWithValue("hash", b.Hash);
+        genCmd.Parameters.AddWithValue("nonce", b.Nonce);
+        return genCmd.ExecuteNonQuery() > 0;
     }
 }

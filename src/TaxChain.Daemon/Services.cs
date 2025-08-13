@@ -10,7 +10,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading;
-using System.Globalization;
+using System.Data.Common;
 
 namespace TaxChain.Daemon.Services
 {
@@ -43,6 +43,9 @@ namespace TaxChain.Daemon.Services
             _listeningThread.IsBackground = false; // Keep thread alive
             _listeningThread.Start();
             _logger.LogInformation($"Control service started on pid {Environment.ProcessId}");
+            _logger.LogInformation($"Initializing storage...");
+            _blockchainRepository.Initialize();
+            _logger.LogInformation("Storage successfully initialized");
             return Task.CompletedTask;
         }
 
@@ -385,7 +388,9 @@ namespace TaxChain.Daemon.Services
             }
             try
             {
-                Guid id = (Guid)chainId;
+                Guid id = (chainId is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement.GetRawText())
+                    :(Guid)chainId;
                 ok = _blockchainRepository.RemoveChain(id);
                 if (!ok)
                 {
@@ -433,7 +438,10 @@ namespace TaxChain.Daemon.Services
             }
             try
             {
-                Blockchain b = (Blockchain)chain;
+                Blockchain b = (chain is JsonElement jsonElement) 
+                    ? JsonSerializer.Deserialize<Blockchain>(jsonElement.GetRawText())
+                    : (Blockchain)chain;
+                
                 ok = _blockchainRepository.Store(b);
                 if (!ok)
                 {
@@ -446,7 +454,8 @@ namespace TaxChain.Daemon.Services
                 return new ControlResponse
                 {
                     Success = true,
-                    Message = "Successfully created a new chain"
+                    Message = "Successfully created a new chain",
+                    Data = b.Id,
                 };
             }
             catch (Exception ex)

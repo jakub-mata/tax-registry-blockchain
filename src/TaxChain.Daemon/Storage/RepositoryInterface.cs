@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.Extensions.Configuration;
 using TaxChain.core;
 
 namespace TaxChain.Daemon.Storage;
 
 public interface IBlockchainRepository
 {
+    public void Initialize();
     /// <summary>
     /// Stores the given blockchain into local storage. Note that the genesis block is
     /// created and stored as well.
@@ -14,6 +14,13 @@ public interface IBlockchainRepository
     /// <param name="blockchain">The blockchain to be stored.</param>
     /// <returns>Bool: the success of the operation.</returns>
     public bool Store(Blockchain blockchain);
+    /// <summary>
+    /// Appends a new block to the given blockchain. Verifies the validity of the block
+    /// by comparing its hash and digest + prev_hash with last block.
+    /// </summary>
+    /// <param name="block">The block to be appended.</param>
+    /// <returns>AppendResult: the result of the operation, see AppendResult</returns>
+    public AppendResult AppendBlock(Block block);
     /// <summary>
     /// Adds a transaction into pending transaction of the given blockchain. These
     /// transactions are not a part of the blockchain. Only when mining starts can
@@ -70,4 +77,15 @@ public interface IBlockchainRepository
     /// <param name="taxpayerId">Taxpayer's id</param>
     /// <returns></returns>
     public bool GatherTaxpayer(Guid chainId, int taxpayerId, out List<Transaction> transactions);
+}
+
+public enum AppendResult
+{
+    Success,
+    BlockchainUndefined,
+    PrevHashMismatch,
+    DigestMismatch,
+    AlreadyIn,
+    DBFail,
+    Exception,
 }
