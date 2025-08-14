@@ -102,7 +102,9 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
                 AnsiConsole.MarkupLine("[red]Daemon did not send any data. Try again later.[/]");
                 return 1;
             }
-            List<Transaction>? info = (List<Transaction>)response.Data;
+            List<Transaction>? info = (response.Data is JsonElement jsonElement)
+                ? JsonSerializer.Deserialize<List<Transaction>>(jsonElement)
+                : (List<Transaction>)response.Data;
             if (info == null)
             {
                 AnsiConsole.MarkupLine("[red]Could not parse received data.[/]");
@@ -126,6 +128,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
         {
             AnsiConsole.MarkupLine($"ID: [green]{t.TaxpayerId}[/]");
             AnsiConsole.MarkupLine($"Amount: [green]{t.Amount}[/]");
+            AnsiConsole.WriteLine();
         }
     }
 }
@@ -161,7 +164,9 @@ internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
                 AnsiConsole.MarkupLine("[red]Daemon did not send any data. Try again later.[/]");
                 return 1;
             }
-            Block[]? blocks = (Block[]?)response.Data;
+            Block[]? blocks = (response.Data is JsonElement jsonElement)
+                ? JsonSerializer.Deserialize<Block[]>(jsonElement)
+                : (Block[]?)response.Data;
             if (blocks == null)
             {
                 AnsiConsole.MarkupLine("[red]Unable to parse received data.[/]");
