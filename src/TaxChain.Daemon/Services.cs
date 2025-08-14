@@ -448,12 +448,15 @@ namespace TaxChain.Daemon.Services
                     Message = "Client failed to provide necessary parameters, namely [Guid]chainId",
                 };
             }
-            ok = parameters.TryGetValue("verbose", out object? v);
-            bool verbose = ok && (v != null);
+
             try
             {
-                int payerId = (int)value;
-                Guid chainId = (Guid)id;
+                int payerId = (value is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<int>(jsonElement)
+                    : (int)value;
+                Guid chainId = (id is JsonElement jsonElement1)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement1)
+                    : (Guid)id;
                 ok = _blockchainRepository.GatherTaxpayer(chainId, payerId, out List<Transaction> trans);
                 if (!ok)
                 {
@@ -481,7 +484,6 @@ namespace TaxChain.Daemon.Services
             }
         }
 
-        // Synchronous command handlers
         private ControlResponse HandleStatusCommand()
         {
             var process = Environment.ProcessId;
@@ -698,7 +700,9 @@ namespace TaxChain.Daemon.Services
             }
             try
             {
-                Guid chainId = (Guid)id;
+                Guid chainId = (id is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement)
+                    : (Guid)id;
                 ok = _blockchainRepository.Verify(chainId);
                 if (!ok)
                 {
@@ -826,8 +830,12 @@ namespace TaxChain.Daemon.Services
             }
             try
             {
-                Guid chainId = (Guid)id;
-                int number = (int)n;
+                Guid chainId = (id is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement)
+                    : (Guid)id;
+                int number = (n is JsonElement jsonElement1)
+                    ? JsonSerializer.Deserialize<int>(jsonElement1)
+                    : (int)n;
                 ok = _blockchainRepository.Tail(chainId, number, out Block[] blocks);
                 if (!ok)
                 {
