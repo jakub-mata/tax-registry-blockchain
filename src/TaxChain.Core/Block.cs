@@ -1,5 +1,6 @@
 using System;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace TaxChain.core;
 
@@ -10,9 +11,9 @@ public class Block
         ChainId = chainId;
         PreviousHash = prevHash;
         Nonce = 0L;
-        Hash = Digest();
         Payload = t;
         Timestamp = DateTime.Now;
+        Hash = Digest();
     }
 
     public Block(Guid chainId, string prevHash, string hash, long nonce, DateTime timestamp, Transaction payload)
@@ -33,14 +34,33 @@ public class Block
 
     public string Digest()
     {
-        string? hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(ToString())).ToString();
-        return hash ?? "";
+        byte[] bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(ToString()));
+        return Convert.ToHexString(bytes);
+    }
+
+    public void Mine(int difficulty, CancellationToken token)
+    {
+        var difficultyPrefix = new string('0', difficulty);
+        Console.WriteLine($"Starting mining, looking for {difficultyPrefix} prefix");
+        Nonce = 0;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            Hash = Digest();
+            if (Hash.StartsWith(difficultyPrefix))
+                break;
+            if (Nonce == long.MaxValue)
+                throw new OverflowException("Mining not possible, all possible nonce values tried");
+            Nonce++;
+        }
+        Console.WriteLine($"Found a valid nonce! {Nonce}");
     }
 
     public override string ToString()
     {
-        return PreviousHash ?? ""
+        return PreviousHash
             + Nonce.ToString()
-            + Payload.ToString();
+            + Payload.ToString()
+            + Timestamp.ToBinary().ToString();
     }
 }
