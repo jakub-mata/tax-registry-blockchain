@@ -1,5 +1,6 @@
 using System;
 using System.Security.Cryptography;
+using System.Text.Json.Serialization;
 using System.Threading;
 
 namespace TaxChain.core;
@@ -16,10 +17,11 @@ public class Block
         Hash = Digest();
     }
 
-    public Block(Guid chainId, string prevHash, string hash, long nonce, DateTime timestamp, Transaction payload)
+    [JsonConstructor]
+    public Block(Guid chainId, string previousHash, string hash, long nonce, DateTime timestamp, Transaction payload)
     {
         ChainId = chainId;
-        PreviousHash = prevHash;
+        PreviousHash = previousHash;
         Hash = hash;
         Nonce = nonce;
         Timestamp = timestamp;
