@@ -57,6 +57,7 @@ internal sealed class StatusCommand : BaseAsyncCommand<StatusCommand.Settings>
             AnsiConsole.WriteLine($"Process id: {statusInfo.ProcessId}");
             AnsiConsole.WriteLine($"Uptime: {statusInfo.Uptime}");
             AnsiConsole.WriteLine($"TimeStamp: {statusInfo.TimeStamp}");
+            AnsiConsole.WriteLine($"Mining: {statusInfo.Mining}");
         }
         return 0;
     }

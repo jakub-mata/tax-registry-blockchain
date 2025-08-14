@@ -22,4 +22,5 @@ public class StatusInformation
     public int ProcessId { get; set; }
     public TimeSpan? Uptime { get; set; }
     public DateTime TimeStamp { get; set; }
+    public bool Mining { get; set; }
 }
