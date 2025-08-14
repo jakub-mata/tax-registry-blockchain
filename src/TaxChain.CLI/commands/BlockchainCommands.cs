@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -208,7 +209,7 @@ internal sealed class RemoveCommand : BaseAsyncCommand<RemoveCommand.Settings>
 
             if (!response.Success)
             {
-                AnsiConsole.Markup("[red]Attempt to remove a blockchain by the daemon failed.[/]");
+                AnsiConsole.MarkupLine("[red]Attempt to remove a blockchain by the daemon failed.[/]");
                 AnsiConsole.WriteLine($"Daemon's response: {response.Message}");
                 return 1;
             }
@@ -221,5 +222,106 @@ internal sealed class RemoveCommand : BaseAsyncCommand<RemoveCommand.Settings>
             AnsiConsole.WriteException(ex);
             return 1;
         }
+    }
+}
+
+internal sealed class MineCommand : BaseAsyncCommand<MineCommand.Settings>
+{
+    public class Settings : BlockchainSettings { }
+
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        if (settings.BlockchainId == "")
+        {
+            AnsiConsole.MarkupLine("[red]Chain Id has not been provided[/]");
+            return 1;
+        }
+        EnsureDaemonRunning();
+        AnsiConsole.MarkupLine("[grey]Calling the daemon to start mining...[/]");
+        try
+        {
+            bool ok = Guid.TryParse(settings.BlockchainId, out Guid chainId);
+            if (!ok)
+            {
+                AnsiConsole.MarkupLine("[red]Failed to parse provided chain Id[/]");
+                return 1;
+            }
+            var parameters = new Dictionary<string, object>()
+            {
+                {"chainId", chainId}
+            };
+            var response = await CLIClient.clientd.SendCommandAsync("mine", parameters);
+            if (!response.Success)
+            {
+                AnsiConsole.MarkupLine("[yellow]Mining has not started...[/]");
+                AnsiConsole.WriteLine($"Daemon's response: {response.Message}");
+                return 1;
+            }
+            if (response.Message == "No pending transactions")
+            {
+                AnsiConsole.MarkupLine("[green]Nothing to mine...[/]");
+                return 0;
+            }
+            AnsiConsole.MarkupLine($"[green]Mining of blockchain {chainId.ToString()} has started![/]");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]Failed to start mining.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+
+    }
+}
+
+internal sealed class InfoCommand : BaseAsyncCommand<InfoCommand.Settings>
+{
+    public class Settings : BlockchainSettings { }
+
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        if (settings.BlockchainId == "")
+        {
+            AnsiConsole.MarkupLine("[red]Chain Id has not been provided[/]");
+            return 1;
+        }
+        EnsureDaemonRunning();
+        AnsiConsole.MarkupLine("[grey]Calling the daemon to get info...[/]");
+        try
+        {
+            bool ok = Guid.TryParse(settings.BlockchainId, out Guid chainId);
+            if (!ok)
+            {
+                AnsiConsole.MarkupLine("[red]Failed to parse provided chain Id[/]");
+                return 1;
+            }
+            var parameters = new Dictionary<string, object>()
+            {
+                {"chainId", chainId}
+            };
+            var response = await CLIClient.clientd.SendCommandAsync("info", parameters);
+            if (!response.Success)
+            {
+                AnsiConsole.MarkupLine("[yellow]Daemon failed...[/]");
+                AnsiConsole.WriteLine($"Daemon's response: {response.Message}");
+                return 1;
+            }
+            Blockchain? b = (response.Data is JsonElement jsonElement)
+                ? JsonSerializer.Deserialize<Blockchain>(jsonElement)
+                : (Blockchain?)response.Data;
+
+            AnsiConsole.MarkupLine($"ChainID: [green]{b.Value.Id.ToString()}[/]");
+            AnsiConsole.MarkupLine($"Reward: [green]{b.Value.RewardAmount}[/]");
+            AnsiConsole.MarkupLine($"Difficulty: [green]{b.Value.Difficulty}[/]");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]Failed to fetch info.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+
     }
 }

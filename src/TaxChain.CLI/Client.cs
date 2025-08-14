@@ -48,7 +48,11 @@ namespace TaxChain.CLI
                     blockchain.AddCommand<LedgerCommand>("ledger")
                         .WithDescription("Lists blocks in the blockchain");
                     blockchain.AddCommand<RemoveCommand>("remove")
-                    .WithDescription("Removes a blockchain from local storage");
+                        .WithDescription("Removes a blockchain from local storage");
+                    blockchain.AddCommand<MineCommand>("mine")
+                        .WithDescription("Starts mining any pending block.");
+                    blockchain.AddCommand<InfoCommand>("info")
+                        .WithDescription("Displays the blockchain's parameters");
                 });
             });
 
