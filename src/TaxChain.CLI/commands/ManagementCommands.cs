@@ -15,7 +15,7 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
     public class Settings : CommandSettings { }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         AnsiConsole.MarkupLine("Sending a list request to the chain deamon.");
         try
         {
@@ -102,7 +102,7 @@ internal sealed class CreateCommand : BaseAsyncCommand<CreateCommand.Settings>
             {"blockchain", blockchain},
         };
         AnsiConsole.WriteLine("Sending creation request to the daemon...");
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         try
         {
             var response = await CLIClient.clientd.SendCommandAsync("create", properties);
@@ -152,7 +152,7 @@ internal sealed class VerifyCommand : BaseAsyncCommand<VerifyCommand.Settings>
             return 1;
         }
 
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         try
         {
             var parameters = new Dictionary<string, object>(){
@@ -197,7 +197,7 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
             AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.[/]");
             return 1;
         }
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         try
         {
             var properties = new Dictionary<string, object>()
@@ -235,7 +235,7 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
     }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         int status = settings.ChainId == null
             ? await SyncAll()
             : await SyncOne(settings.ChainId);

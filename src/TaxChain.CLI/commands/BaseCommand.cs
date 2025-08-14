@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -13,12 +14,26 @@ namespace TaxChain.CLI.commands
             Console = AnsiConsole.Console;
         }
 
-        protected void EnsureDaemonRunning()
+        protected async void EnsureDaemonRunning()
         {
             // Check if daemon is running, start if needed
             Console.MarkupLine("[yellow]Checking daemon status...[/]");
-            Console.WriteLine("Mock starting the daemon...");
-            // Implementation would check daemon status and start if needed
+            var statusResponse = await CLIClient.clientd.SendCommandAsync("status");
+            if (!statusResponse.Success)
+            {
+                AnsiConsole.MarkupLine("[yellow]Daemon not running, starting now...[/]");
+                bool ok = await StartDaemon();
+                if (!ok)
+                    AnsiConsole.MarkupLine("[red]Failed to start up the daemon, try again later...[/]");
+                else
+                    AnsiConsole.MarkupLine("[green]Daemon is running now.");
+                return;
+            }
+        }
+
+        private async Task<bool> StartDaemon()
+        {
+            return await CLIClient.clientd.StartDaemonAsync();
         }
     }
     
@@ -32,11 +47,26 @@ namespace TaxChain.CLI.commands
             Console = AnsiConsole.Console;
         }
 
-        protected void EnsureDaemonRunning()
+        protected async Task EnsureDaemonRunning()
         {
             // Check if daemon is running, start if needed
             Console.MarkupLine("[yellow]Checking daemon status...[/]");
-            // Implementation would check daemon status and start if needed
+            var statusResponse = await CLIClient.clientd.SendCommandAsync("status");
+            if (!statusResponse.Success)
+            {
+                AnsiConsole.MarkupLine("[yellow]Daemon not running, starting now...[/]");
+                bool ok = await StartDaemon();
+                if (!ok)
+                    AnsiConsole.MarkupLine("[red]Failed to start up the daemon, try again later...[/]");
+                else
+                    AnsiConsole.MarkupLine("[green]Daemon is running now.[/]");
+                return;
+            }
+        }
+
+        private async Task<bool> StartDaemon()
+        {
+            return await CLIClient.clientd.StartDaemonAsync();
         }
     }
 }

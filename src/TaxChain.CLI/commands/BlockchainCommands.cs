@@ -40,7 +40,7 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
 
     private async Task<int> SendAddRequest(core.Transaction t, Guid chainId)
     {
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         var properties = new Dictionary<string, object>()
         {
             {"chainId", chainId},
@@ -86,7 +86,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
         properties.Add("taxpayerId", settings.UserAddress);
         properties.Add("chainId", Guid.Parse(settings.BlockchainId));
 
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         AnsiConsole.WriteLine("Sending a request for the gather command...");
         try
         {
@@ -148,7 +148,7 @@ internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
             {"number", settings.Number},
             {"chainId", Guid.Parse(settings.BlockchainId)}
         };
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         AnsiConsole.WriteLine($"Sending a request for a ledger of size {settings.Number}");
         try
         {
@@ -196,7 +196,7 @@ internal sealed class RemoveCommand : BaseAsyncCommand<RemoveCommand.Settings>
             return 1;
         }
 
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         AnsiConsole.MarkupLine("[grey]Calling daemon to remove the blockchain...[/]");
         try
         {
@@ -241,7 +241,7 @@ internal sealed class MineCommand : BaseAsyncCommand<MineCommand.Settings>
             AnsiConsole.MarkupLine("[red]Chain Id has not been provided[/]");
             return 1;
         }
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         AnsiConsole.MarkupLine("[grey]Calling the daemon to start mining...[/]");
         try
         {
@@ -291,7 +291,7 @@ internal sealed class InfoCommand : BaseAsyncCommand<InfoCommand.Settings>
             AnsiConsole.MarkupLine("[red]Chain Id has not been provided[/]");
             return 1;
         }
-        EnsureDaemonRunning();
+        await EnsureDaemonRunning();
         AnsiConsole.MarkupLine("[grey]Calling the daemon to get info...[/]");
         try
         {
