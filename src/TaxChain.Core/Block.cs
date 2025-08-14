@@ -9,13 +9,13 @@ public class Block
     {
         ChainId = chainId;
         PreviousHash = prevHash;
-        Nonce = 0;
+        Nonce = 0L;
         Hash = Digest();
         Payload = t;
         Timestamp = DateTime.Now;
     }
 
-    public Block(Guid chainId, string prevHash, string hash, int nonce, DateTime timestamp, Transaction payload)
+    public Block(Guid chainId, string prevHash, string hash, long nonce, DateTime timestamp, Transaction payload)
     {
         ChainId = chainId;
         PreviousHash = prevHash;
@@ -27,7 +27,7 @@ public class Block
     public Guid ChainId { get; set; }
     public string PreviousHash { get; set; }
     public string Hash { get; set; }
-    public int Nonce { get; set; }
+    public long Nonce { get; set; }
     public DateTime Timestamp { get; set; }
     public Transaction Payload { get; set; }
 
