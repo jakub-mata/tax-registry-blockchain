@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
 using TaxChain.core;
 
 namespace TaxChain.Daemon.Storage;
@@ -22,6 +23,12 @@ public interface IBlockchainRepository
     /// <returns>AppendResult: the result of the operation, see AppendResult</returns>
     public AppendResult AppendBlock(Block block);
     /// <summary>
+    /// Retrieves the representation of a blockchain with given id from local storage.
+    /// </summary>
+    /// <param name="chainId">The ID of the blockchain.</param>
+    /// <returns>Bool: the success of the operation</returns>
+    public bool GetBlockchain(Guid chainId, out Blockchain? b);
+    /// <summary>
     /// Adds a transaction into pending transaction of the given blockchain. These
     /// transactions are not a part of the blockchain. Only when mining starts can
     /// these transactions be retrieved and added to the blockchain.
@@ -43,7 +50,7 @@ public interface IBlockchainRepository
     /// <param name="transaction">The returned transaction. If no transactions are pending,
     /// the returned value is null</param>
     /// <returns></returns>
-    public bool FetchPending(Guid chainId, out Transaction transaction);
+    public bool FetchPending(Guid chainId, out Transaction? transaction);
     /// <summary>
     /// Fetches n last blocks from a blockchain.
     /// </summary>

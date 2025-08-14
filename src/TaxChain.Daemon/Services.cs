@@ -10,7 +10,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading;
-using System.Data.Common;
 
 namespace TaxChain.Daemon.Services
 {
@@ -22,6 +21,8 @@ namespace TaxChain.Daemon.Services
         private readonly ILogger<ControlService> _logger;
         private DateTime? _startupTimestamp;
         private CancellationTokenSource _cancellationTokenSource = new();
+        private CancellationTokenSource? _miningCts;
+        private int _running;
         private Thread? _listeningThread;
 
         public ControlService(
@@ -34,6 +35,7 @@ namespace TaxChain.Daemon.Services
             _blockchainRepository = blockchainRepository;
             _applicationLifetime = applicationLifetime;
             _logger = logger;
+            _running = 0;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -51,6 +53,7 @@ namespace TaxChain.Daemon.Services
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            CancelMining();
             _cancellationTokenSource.Cancel();
 
             // Wait for thread to finish (with timeout)
@@ -209,8 +212,212 @@ namespace TaxChain.Daemon.Services
                 "add" => HandleAddCommand(request.Parameters),
                 "gather" => HandleGatherCommand(request.Parameters),
                 "ledger" => HandleLedgerCommand(request.Parameters),
+                "mine" => HandleMineCommand(request.Parameters),
+                "info" => HandleInfoCommand(request.Parameters),
                 _ => new ControlResponse { Success = false, Message = $"Unknown command: {request.Command}" }
             };
+        }
+
+        private ControlResponse HandleInfoCommand(Dictionary<string, object>? parameters)
+        {
+            if (parameters == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely [Guid]chainId"
+                };
+            }
+            bool ok = parameters.TryGetValue("chainId", out object? value);
+            if (!ok || value == null)
+            {
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client failed to provide necessary parameters, namely [Guid]chainId"
+                };
+            }
+            try
+            {
+                Guid chainId = (value is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement)
+                    : (Guid)value;
+                ok = _blockchainRepository.GetBlockchain(chainId, out Blockchain? b);
+                if (!ok)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Daemon failed to get blockchain from the storage",
+                    };
+                }
+                if (!b.HasValue)
+                {
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "No such blockchain found",
+                    };
+                }
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Blockchain info fetched",
+                    Data = b
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during info command: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception: {ex}",
+                };
+            }
+        }
+
+        private ControlResponse HandleMineCommand(Dictionary<string, object>? parameters)
+        {
+            if (parameters == null)
+            {
+                _logger.LogWarning("Client failed to provide necessary parameters, namely [Guid]chainId");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Missing parameters",
+                };
+            }
+            bool ok = parameters.TryGetValue("chainId", out object? chainIdObject);
+            if (!ok || chainIdObject == null)
+            {
+                _logger.LogWarning("Client failed to provide necessary parameters, namely [Guid]chainId");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Missing parameter chainId",
+                };
+            }
+
+            try
+            {
+                Guid chainId = (chainIdObject is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement.GetRawText())
+                    : (Guid)chainIdObject;
+                ok = _blockchainRepository.FetchPending(chainId, out Transaction? transaction);
+                if (!ok)
+                {
+                    _logger.LogWarning("Failed to fetch pending transactions");
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Failed to fetch pending transactions",
+                    };
+                }
+                if (!transaction.HasValue)
+                {
+                    _logger.LogInformation("No pending transactions to mine");
+                    return new ControlResponse
+                    {
+                        Success = true,
+                        Message = "No pending transactions",
+                    };
+                }
+                ok = _blockchainRepository.Tail(chainId, 1, out Block[] lastBlock);
+                if (!ok || lastBlock.Length != 1)
+                {
+                    _logger.LogWarning("Failed to fetch last block");
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Failed to fetch last block for previous hash",
+                    };
+                }
+                // fetch difficulty
+                ok = _blockchainRepository.GetBlockchain(chainId, out Blockchain? b);
+                if (!ok || !b.HasValue)
+                {
+                    _logger.LogWarning("Failed to retrieve blockchain from storage, stopping mining...");
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Failed to retrieve blockchain from storage, stopping mining...",
+                    };
+                }
+                Block toMine = new(chainId, lastBlock[0].PreviousHash, transaction.Value);
+                HandleMiningWorker(toMine, b.Value.Difficulty);
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Mining has started!",
+                };
+            }
+            catch (InvalidOperationException)
+            {
+                _logger.LogWarning("Mining worker is already busy...");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Already mining, try again later..."
+                };
+            }
+            catch (OverflowException)
+            {
+                _logger.LogError("Impossible to mine the block, tried all nonce values...");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Impossible to mine the block",
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during mine command: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception: {ex}",
+                };
+            }
+        }
+
+        private void HandleMiningWorker(Block toMine, int difficulty)
+        {
+            if (Interlocked.Exchange(ref this._running, 1) == 1)
+                throw new InvalidOperationException("Worker already running");
+            _miningCts = new CancellationTokenSource();
+            var token = _miningCts.Token;
+
+            Thread thread = new Thread(() =>
+            {
+                try
+                {
+                    toMine.Mine(difficulty, token);
+                    _logger.LogInformation("Mining successful! Storing mined block...");
+                    AppendResult result = _blockchainRepository.AppendBlock(toMine);
+                    if (result != AppendResult.Success)
+                    {
+                        _logger.LogError("Failed to store new block");
+                        return;
+                    }
+                    _logger.LogInformation("Mined block stored.");
+                    Interlocked.Decrement(ref this._running);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("Mining has been canceled");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Exception during mining: {ex}", ex);
+                }
+            });
+            thread.Start();
+        }
+
+        private void CancelMining()
+        {
+            _miningCts?.Cancel();
         }
 
         private ControlResponse HandleGatherCommand(Dictionary<string, object>? parameters)
@@ -289,7 +496,8 @@ namespace TaxChain.Daemon.Services
                     Status = "Running",
                     ProcessId = process,
                     Uptime = uptime,
-                    TimeStamp = DateTime.UtcNow
+                    TimeStamp = DateTime.UtcNow,
+                    Mining = _running == 1,
                 }
             };
         }
