@@ -344,7 +344,7 @@ namespace TaxChain.Daemon.Services
                         Message = "Failed to retrieve blockchain from storage, stopping mining...",
                     };
                 }
-                Block toMine = new(chainId, lastBlock[0].PreviousHash, transaction.Value);
+                Block toMine = new(chainId, lastBlock[0].Hash, transaction.Value);
                 HandleMiningWorker(toMine, b.Value.Difficulty);
                 return new ControlResponse
                 {
@@ -379,6 +379,9 @@ namespace TaxChain.Daemon.Services
                     Message = $"Exception: {ex}",
                 };
             }
+            finally
+            {
+            }
         }
 
         private void HandleMiningWorker(Block toMine, int difficulty)
@@ -401,7 +404,6 @@ namespace TaxChain.Daemon.Services
                         return;
                     }
                     _logger.LogInformation("Mined block stored.");
-                    Interlocked.Decrement(ref this._running);
                 }
                 catch (OperationCanceledException)
                 {
@@ -410,6 +412,10 @@ namespace TaxChain.Daemon.Services
                 catch (Exception ex)
                 {
                     _logger.LogError("Exception during mining: {ex}", ex);
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref this._running);
                 }
             });
             thread.Start();
@@ -451,9 +457,15 @@ namespace TaxChain.Daemon.Services
 
             try
             {
-                int payerId = (value is JsonElement jsonElement)
-                    ? JsonSerializer.Deserialize<int>(jsonElement)
-                    : (int)value;
+                string? payerId = (value is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<string>(jsonElement)
+                    : (string?)value;
+                if (payerId == null)
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Invalid taxpayer Id",
+                    };
                 Guid chainId = (id is JsonElement jsonElement1)
                     ? JsonSerializer.Deserialize<Guid>(jsonElement1)
                     : (Guid)id;

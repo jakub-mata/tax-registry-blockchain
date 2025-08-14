@@ -124,6 +124,8 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
 
     private static void DisplayTaxpayerTable(List<Transaction> data)
     {
+        if (data.Count == 0)
+            AnsiConsole.WriteLine("No known entries for this user.");
         foreach (Transaction t in data)
         {
             AnsiConsole.MarkupLine($"ID: [green]{t.TaxpayerId}[/]");

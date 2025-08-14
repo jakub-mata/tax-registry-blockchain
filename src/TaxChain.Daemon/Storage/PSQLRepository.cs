@@ -607,7 +607,7 @@ public class PGSQLRepository : IBlockchainRepository
     private static int GetBlockchainLatestBlock(Guid chainId, NpgsqlConnection conn)
     {
         string chainSql = @"
-            SELECT (latest_block) FROM chains WHERE id=@id;
+            SELECT latest_block FROM chains WHERE id=@id;
         ";
         var chainCmd = new NpgsqlCommand(chainSql, conn);
         chainCmd.Parameters.AddWithValue("id", chainId);
@@ -618,24 +618,23 @@ public class PGSQLRepository : IBlockchainRepository
         return id;
     }
 
-    public bool GatherTaxpayer(Guid chainId, int taxpayerId, out List<Transaction> transactions)
+    public bool GatherTaxpayer(Guid chainId, string taxpayerId, out List<Transaction> transactions)
     {
         transactions = new();
         try
         {
-            using var conn = new NpgsqlConnection();
+            using var conn = GetConnection();
             conn.Open();
-            using var t = conn.BeginTransaction();
             string taxpayerSql = @"
-            SELECT (id, chain_id, block_id, taxpayer_id, jurisdiction, amount, taxable_base, tax_rate, tax_type, status, notes, period_start, period_end, due_date, payment_date)
+            SELECT id, chain_id, block_id, taxpayer_id, amount
             FROM transactions
             WHERE chain_id=@chain_id AND taxpayer_id=@taxpayer_id;";
-            var payerCmd = new NpgsqlCommand(taxpayerSql, conn, t);
+            var payerCmd = new NpgsqlCommand(taxpayerSql, conn);
             payerCmd.Parameters.AddWithValue("chain_id", chainId);
             payerCmd.Parameters.AddWithValue("taxpayer_id", taxpayerId);
             using (var reader = payerCmd.ExecuteReader())
             {
-                if (reader.Read())
+                while (reader.Read())
                 {
                     Transaction curr = new();
                     curr.ID = reader.GetGuid(reader.GetOrdinal("id"));

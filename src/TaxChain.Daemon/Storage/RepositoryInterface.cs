@@ -83,7 +83,7 @@ public interface IBlockchainRepository
     /// <param name="chainId">The id of the blockchain</param>
     /// <param name="taxpayerId">Taxpayer's id</param>
     /// <returns></returns>
-    public bool GatherTaxpayer(Guid chainId, int taxpayerId, out List<Transaction> transactions);
+    public bool GatherTaxpayer(Guid chainId, string taxpayerId, out List<Transaction> transactions);
 }
 
 public enum AppendResult
