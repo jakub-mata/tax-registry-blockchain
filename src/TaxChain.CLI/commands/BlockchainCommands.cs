@@ -166,9 +166,11 @@ internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
                 AnsiConsole.MarkupLine("[red]Daemon did not send any data. Try again later.[/]");
                 return 1;
             }
-            Block[]? blocks = (response.Data is JsonElement jsonElement)
-                ? JsonSerializer.Deserialize<Block[]>(jsonElement)
-                : (Block[]?)response.Data;
+            AnsiConsole.WriteLine(((JsonElement)response.Data).GetRawText());
+            List<Block>? blocks = (response.Data is JsonElement jsonElement)
+                ? JsonSerializer.Deserialize<List<Block>>(jsonElement.GetRawText())
+                : (List<Block>)response.Data;
+            AnsiConsole.WriteLine("Correctly parsed");
             if (blocks == null)
             {
                 AnsiConsole.MarkupLine("[red]Unable to parse received data.[/]");
@@ -318,6 +320,11 @@ internal sealed class InfoCommand : BaseAsyncCommand<InfoCommand.Settings>
                 ? JsonSerializer.Deserialize<Blockchain>(jsonElement)
                 : (Blockchain?)response.Data;
 
+            if (b == null)
+            {
+                AnsiConsole.MarkupLine("[red]Failed to parsed received blockchain.[/]");
+                return 1;
+            }
             AnsiConsole.MarkupLine($"ChainID: [green]{b.Value.Id.ToString()}[/]");
             AnsiConsole.MarkupLine($"Reward: [green]{b.Value.RewardAmount}[/]");
             AnsiConsole.MarkupLine($"Difficulty: [green]{b.Value.Difficulty}[/]");

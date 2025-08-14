@@ -385,9 +385,9 @@ public class PGSQLRepository : IBlockchainRepository
         }
     }
 
-    public bool Tail(Guid chainId, int n, out Block[] blocks)
+    public bool Tail(Guid chainId, int n, out List<Block> blocks)
     {
-        blocks = new Block[n];
+        blocks = new List<Block>();
         try
         {
             using var connection = GetConnection();
@@ -414,17 +414,17 @@ public class PGSQLRepository : IBlockchainRepository
             Block? tailBlock = GetBlock(chainId, blockId, connection);
             if (tailBlock == null)
                 return false;
-            blocks[0] = tailBlock;
+            blocks.Add(tailBlock);
             for (int i = 1; i < n; ++i)
             {
-                Block? next = FindBlockByHash(chainId, blocks[i - 1].Hash, connection);
+                Block? next = FindBlockByHash(chainId, blocks[i - 1].PreviousHash, connection);
                 if (next == null)
                 {
                     _logger.LogWarning($"Stopped prematurely at {i}th index");
                     return true;
                 }
-                blocks[i] = next;
-                if (next.Hash == "0")
+                blocks.Add(next);
+                if (next.PreviousHash == "")
                 {
                     _logger.LogWarning($"Reached the beginning of the chain at index {i}");
                     return true;

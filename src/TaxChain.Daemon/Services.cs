@@ -323,8 +323,8 @@ namespace TaxChain.Daemon.Services
                         Message = "No pending transactions",
                     };
                 }
-                ok = _blockchainRepository.Tail(chainId, 1, out Block[] lastBlock);
-                if (!ok || lastBlock.Length != 1)
+                ok = _blockchainRepository.Tail(chainId, 1, out List<Block> lastBlock);
+                if (!ok || lastBlock.Count != 1)
                 {
                     _logger.LogWarning("Failed to fetch last block");
                     return new ControlResponse
@@ -378,9 +378,6 @@ namespace TaxChain.Daemon.Services
                     Success = false,
                     Message = $"Exception: {ex}",
                 };
-            }
-            finally
-            {
             }
         }
 
@@ -848,7 +845,7 @@ namespace TaxChain.Daemon.Services
                 int number = (n is JsonElement jsonElement1)
                     ? JsonSerializer.Deserialize<int>(jsonElement1)
                     : (int)n;
-                ok = _blockchainRepository.Tail(chainId, number, out Block[] blocks);
+                ok = _blockchainRepository.Tail(chainId, number, out List<Block> blocks);
                 if (!ok)
                 {
                     return new ControlResponse

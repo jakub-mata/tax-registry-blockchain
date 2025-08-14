@@ -58,7 +58,7 @@ public interface IBlockchainRepository
     /// <param name="n">The amount of blocks to be fetched</param>
     /// <param name="blocks">The fetched blocks</param>
     /// <returns>Bool: the success of the operation.</returns>
-    public bool Tail(Guid chainId, int n, out Block[] blocks);
+    public bool Tail(Guid chainId, int n, out List<Block> blocks);
     /// <summary>
     /// Fetches all the blocks in the blockchain, in descending order.
     /// </summary>
