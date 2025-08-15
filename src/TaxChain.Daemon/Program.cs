@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-
+using DotNetEnv;
 using TaxChain.Daemon.P2P;
 using Microsoft.Extensions.Logging;
 
@@ -12,6 +12,7 @@ namespace TaxChain.Daemon
         public static volatile bool VerboseMode = true;
         public static void Main(string[] args)
         {
+            Env.Load(".env");
             Console.WriteLine("Daemon program runs");
             var host = Host.CreateDefaultBuilder(args)
                 .ConfigureLogging(logging =>
