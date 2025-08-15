@@ -166,11 +166,9 @@ internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
                 AnsiConsole.MarkupLine("[red]Daemon did not send any data. Try again later.[/]");
                 return 1;
             }
-            AnsiConsole.WriteLine(((JsonElement)response.Data).GetRawText());
             List<Block>? blocks = (response.Data is JsonElement jsonElement)
                 ? JsonSerializer.Deserialize<List<Block>>(jsonElement.GetRawText())
                 : (List<Block>)response.Data;
-            AnsiConsole.WriteLine("Correctly parsed");
             if (blocks == null)
             {
                 AnsiConsole.MarkupLine("[red]Unable to parse received data.[/]");
