@@ -48,6 +48,7 @@ namespace TaxChain.Daemon.Services
             _logger.LogInformation($"Initializing storage...");
             _blockchainRepository.Initialize();
             _logger.LogInformation("Storage successfully initialized");
+            Program.VerboseMode = false;
             return Task.CompletedTask;
         }
 
@@ -196,6 +197,21 @@ namespace TaxChain.Daemon.Services
         {
             if (request == null)
                 return new ControlResponse { Success = false, Message = "Invalid request" };
+
+            if (request.Parameters != null &&
+                request.Parameters.TryGetValue("verbose", out object? verboseValue) &&
+                verboseValue is JsonElement jsonElementVerbose)
+            {
+                bool verbose = false;
+                try
+                {
+                    verbose = JsonSerializer.Deserialize<bool>(jsonElementVerbose.GetRawText());
+                }
+                catch
+                { }
+                Program.VerboseMode = verbose;
+                _logger.LogInformation("Verbose logging mode set to: {mode}", verbose);
+            }
 
             _logger.LogInformation($"Processing command: {request.Command}");
 

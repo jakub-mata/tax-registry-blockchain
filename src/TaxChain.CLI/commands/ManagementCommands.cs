@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Authentication.ExtendedProtection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,14 +13,14 @@ namespace TaxChain.CLI.commands;
 
 internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
 {
-    public class Settings : CommandSettings { }
+    public class Settings : VerboseSettings { }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         await EnsureDaemonRunning();
         AnsiConsole.MarkupLine("Sending a list request to the chain deamon.");
         try
         {
-            Blockchain[]? fetched = await GetAllChains();
+            Blockchain[]? fetched = await GetAllChains(GetParameters(settings.Verbose));
             if (fetched == null)
                 return 1;
             if (fetched == null)
@@ -49,12 +50,12 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
         }
     }
 
-    internal static async Task<Blockchain[]?> GetAllChains()
+    internal static async Task<Blockchain[]?> GetAllChains(Dictionary<string, object>? param = null)
     {
         AnsiConsole.MarkupLine("Sending a list request to the chain deamon.");
         try
         {
-            var response = await CLIClient.clientd.SendCommandAsync("list");
+            var response = await CLIClient.clientd.SendCommandAsync("list", param);
             if (!response.Success)
             {
                 AnsiConsole.MarkupLine("Attempt to list blockchains by the daemon failed.");
@@ -81,7 +82,7 @@ internal sealed class ListCommand : BaseAsyncCommand<ListCommand.Settings>
 }
 internal sealed class CreateCommand : BaseAsyncCommand<CreateCommand.Settings>
 {
-    public class Settings : CommandSettings {}
+    public class Settings : VerboseSettings {}
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         var name = AnsiConsole.Prompt(
@@ -98,9 +99,8 @@ internal sealed class CreateCommand : BaseAsyncCommand<CreateCommand.Settings>
             reward,
             difficulty
         );
-        var properties = new Dictionary<string, object>(){
-            {"blockchain", blockchain},
-        };
+        var properties = GetParameters(settings.Verbose);
+        properties.Add("blockchain", blockchain);
         AnsiConsole.WriteLine("Sending creation request to the daemon...");
         await EnsureDaemonRunning();
         try
@@ -134,7 +134,7 @@ internal sealed class CreateCommand : BaseAsyncCommand<CreateCommand.Settings>
 
 internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
 {
-    public class Settings : CommandSettings
+    public class Settings : VerboseSettings
     {
         [CommandOption("-c|--chain <CHAIN_ID>")]
         public string? ChainId { get; set; }
@@ -155,10 +155,8 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
         await EnsureDaemonRunning();
         try
         {
-            var properties = new Dictionary<string, object>()
-            {
-                {"chainId", parsed}
-            };
+            var properties = GetParameters(settings.Verbose);
+            properties.Add("chainId", parsed);
             var response = await CLIClient.clientd.SendCommandAsync("fetch", properties);
             if (!response.Success)
             {
@@ -183,7 +181,7 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
 }
 internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
 {
-    public class Settings : CommandSettings
+    public class Settings : VerboseSettings
     {
         [CommandOption("-c|--chain <CHAIN_ID>")]
         public string? ChainId { get; set; }
@@ -192,12 +190,12 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
     {
         await EnsureDaemonRunning();
         int status = settings.ChainId == null
-            ? await SyncAll()
-            : await SyncOne(settings.ChainId);
+            ? await SyncAll(settings)
+            : await SyncOne(settings, settings.ChainId);
         return status;
     }
 
-    private async Task<int> SyncOne(string id)
+    private async Task<int> SyncOne(Settings settings, string id)
     {
         bool ok = Guid.TryParse(id, out Guid parsed);
         if (!ok)
@@ -207,11 +205,9 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
         }
         try
         {
-            var properties = new Dictionary<string, object>()
-            {
-                {"chainId", parsed},
-            };
-            var response = await CLIClient.clientd.SendCommandAsync("sync");
+            var properties = GetParameters(settings.Verbose);
+            properties.Add("chainId", parsed);
+            var response = await CLIClient.clientd.SendCommandAsync("sync", properties);
             if (!response.Success)
             {
                 AnsiConsole.MarkupLine("[red]Synchorisation failed.[/]");
@@ -229,16 +225,16 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
         }
     }
 
-    private async Task<int> SyncAll()
+    private async Task<int> SyncAll(Settings settings)
     {
         // get all ids, similar to 'list' command
-        Blockchain[]? fetched = await ListCommand.GetAllChains();
+        Blockchain[]? fetched = await ListCommand.GetAllChains(GetParameters(settings.Verbose));
         if (fetched == null)
             return 1;
         foreach (Blockchain b in fetched)
         {
             AnsiConsole.WriteLine($"Synchronising {b.Id.ToString()}...");
-            int status = await SyncOne(b.Id.ToString());
+            int status = await SyncOne(settings, b.Id.ToString());
             if (status == 1)
                 AnsiConsole.MarkupLine($"Failed to sync blockchain with id [yellow]{b.Id.ToString()}[/]");
             else

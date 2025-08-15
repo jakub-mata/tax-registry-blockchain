@@ -149,7 +149,7 @@ namespace TaxChain.CLI.Services
             }
         }
 
-        public async Task<bool> StopDaemonAsync()
+        public async Task<bool> StopDaemonAsync(Dictionary<string, object>? paramaters)
         {
             try
             {
@@ -159,7 +159,7 @@ namespace TaxChain.CLI.Services
                     return true;
                 }
 
-                var response = await SendCommandAsync("stop");
+                var response = await SendCommandAsync("stop", paramaters);
                 AnsiConsole.MarkupLine("[yellow]Response recevied, awaiting shutdown...[/]");
                 Thread.Sleep(1000);
                 if (response == null || !response.Success)

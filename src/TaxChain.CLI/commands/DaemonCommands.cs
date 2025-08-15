@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -13,6 +14,7 @@ internal sealed class StartCommand : BaseAsyncCommand<StartCommand.StartSetting>
     public override async Task<int> ExecuteAsync(CommandContext context, StartSetting settings)
     {
         bool ok = await CLIClient.clientd.StartDaemonAsync();
+        Thread.Sleep(1000);
         if (!ok)
             return 1;
         return 0;
@@ -24,7 +26,7 @@ internal sealed class KillCommand : BaseAsyncCommand<KillCommand.KillSettings>
     public sealed class KillSettings : CommandSettings {}
     public override async Task<int> ExecuteAsync(CommandContext context, KillSettings settings)
     {
-        bool ok = await CLIClient.clientd.StopDaemonAsync();
+        bool ok = await CLIClient.clientd.StopDaemonAsync(GetParameters(true));
         if (!ok)
             return 1;
         return 0;
@@ -33,11 +35,12 @@ internal sealed class KillCommand : BaseAsyncCommand<KillCommand.KillSettings>
 
 internal sealed class StatusCommand : BaseAsyncCommand<StatusCommand.Settings>
 {
-    public sealed class Settings : CommandSettings { }
+    public sealed class Settings : VerboseSettings { }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        var statusResponse = await CLIClient.clientd.SendCommandAsync("status");
+        var parameters = GetParameters(settings.Verbose);
+        var statusResponse = await CLIClient.clientd.SendCommandAsync("status", parameters);
         if (!statusResponse.Success)
         {
             AnsiConsole.MarkupLine("[red]The daemon is not running.[/]");

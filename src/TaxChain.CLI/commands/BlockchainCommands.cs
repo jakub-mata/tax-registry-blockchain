@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Spectre.Console;
@@ -12,6 +13,9 @@ public class BlockchainSettings : CommandSettings
 {
     [CommandArgument(0, "<BLOCKCHAIN_ID>")]
     public string BlockchainId { get; set; } = string.Empty;
+    [CommandOption("--verbose")]
+    [DefaultValue(false)]
+    public bool Verbose { get; set; }
 }
 
 internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Settings>
@@ -35,16 +39,17 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
             taxpayerId,
             amount
         );
-        return await SendAddRequest(transaction, parsed);
+        return await SendAddRequest(transaction, parsed, settings.Verbose);
     }
 
-    private async Task<int> SendAddRequest(core.Transaction t, Guid chainId)
+    private async Task<int> SendAddRequest(core.Transaction t, Guid chainId, bool verbose = false)
     {
         await EnsureDaemonRunning();
         var properties = new Dictionary<string, object>()
         {
             {"chainId", chainId},
             { "transaction", t},
+            {"verbose", verbose}
         };
         AnsiConsole.WriteLine("Sending provided transaction to the records...");
         try
@@ -85,6 +90,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
         }
         properties.Add("taxpayerId", settings.UserAddress);
         properties.Add("chainId", Guid.Parse(settings.BlockchainId));
+        properties.Add("verbose", settings.Verbose);
 
         await EnsureDaemonRunning();
         AnsiConsole.WriteLine("Sending a request for the gather command...");
@@ -148,7 +154,8 @@ internal sealed class LedgerCommand : BaseAsyncCommand<LedgerCommand.Settings>
         var parameters = new Dictionary<string, object>()
         {
             {"number", settings.Number},
-            {"chainId", Guid.Parse(settings.BlockchainId)}
+            {"chainId", Guid.Parse(settings.BlockchainId)},
+            {"verbose", settings.Verbose}
         };
         await EnsureDaemonRunning();
         AnsiConsole.WriteLine($"Sending a request for a ledger of size {settings.Number}");
@@ -211,6 +218,7 @@ internal sealed class RemoveCommand : BaseAsyncCommand<RemoveCommand.Settings>
             var parameters = new Dictionary<string, object>()
             {
                 {"chainId", parsed},
+                {"verbose", settings.Verbose}
             };
             var response = await CLIClient.clientd.SendCommandAsync("remove", parameters);
 
@@ -255,7 +263,8 @@ internal sealed class MineCommand : BaseAsyncCommand<MineCommand.Settings>
             }
             var parameters = new Dictionary<string, object>()
             {
-                {"chainId", chainId}
+                {"chainId", chainId},
+                {"verbose", settings.Verbose}
             };
             var response = await CLIClient.clientd.SendCommandAsync("mine", parameters);
             if (!response.Success)
@@ -305,7 +314,8 @@ internal sealed class InfoCommand : BaseAsyncCommand<InfoCommand.Settings>
             }
             var parameters = new Dictionary<string, object>()
             {
-                {"chainId", chainId}
+                {"chainId", chainId},
+                {"verbose", settings.Verbose}
             };
             var response = await CLIClient.clientd.SendCommandAsync("info", parameters);
             if (!response.Success)
@@ -360,6 +370,7 @@ internal sealed class VerifyCommand : BaseAsyncCommand<VerifyCommand.Settings>
         {
             var parameters = new Dictionary<string, object>(){
                 {"chainId", parsed},
+                {"verbose", settings.Verbose}
             };
             var response = await CLIClient.clientd.SendCommandAsync("verify", parameters);
             if (!response.Success)
