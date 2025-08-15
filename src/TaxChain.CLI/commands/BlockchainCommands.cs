@@ -339,3 +339,45 @@ internal sealed class InfoCommand : BaseAsyncCommand<InfoCommand.Settings>
 
     }
 }
+
+internal sealed class VerifyCommand : BaseAsyncCommand<VerifyCommand.Settings>
+{
+    public class Settings : BlockchainSettings {}
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        if (settings.BlockchainId == null)
+        {
+            AnsiConsole.MarkupLine("[yellow]No chain id provided, no chain to verify[/]");
+            return 1;
+        }
+        bool ok = Guid.TryParse(settings.BlockchainId, out Guid parsed);
+        if (!ok)
+        {
+            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id. If unsure about the id, use the 'list' command[/]");
+            return 1;
+        }
+
+        await EnsureDaemonRunning();
+        try
+        {
+            var parameters = new Dictionary<string, object>(){
+                {"chainId", parsed},
+            };
+            var response = await CLIClient.clientd.SendCommandAsync("verify", parameters);
+            if (!response.Success)
+            {
+                AnsiConsole.MarkupLine("[yellow]Failed to verify the chain.[/]");
+                AnsiConsole.WriteLine($"Daemon message: {response.Message}");
+                return 1;
+            }
+            AnsiConsole.MarkupLine($"[green]The taxchain {settings.BlockchainId} is valid.[/]");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]An exception occured during verification.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+    }
+}

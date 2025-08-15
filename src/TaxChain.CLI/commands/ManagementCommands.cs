@@ -131,51 +131,6 @@ internal sealed class CreateCommand : BaseAsyncCommand<CreateCommand.Settings>
         }
     }
 }
-internal sealed class VerifyCommand : BaseAsyncCommand<VerifyCommand.Settings>
-{
-    public class Settings : CommandSettings
-    {
-        [CommandOption("-c|--chain <CHAIN_ID>")]
-        public string? ChainId { get; set; }
-    }
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
-    {
-        if (settings.ChainId == null)
-        {
-            AnsiConsole.MarkupLine("[yellow]No chain id provided, no chain to verify[/]");
-            return 1;
-        }
-        bool ok = Guid.TryParse(settings.ChainId, out Guid parsed);
-        if (!ok)
-        {
-            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id. If unsure about the id, use the 'list' command[/]");
-            return 1;
-        }
-
-        await EnsureDaemonRunning();
-        try
-        {
-            var parameters = new Dictionary<string, object>(){
-                {"chainId", parsed},
-            };
-            var response = await CLIClient.clientd.SendCommandAsync("verify", parameters);
-            if (!response.Success)
-            {
-                AnsiConsole.MarkupLine("[yellow]Failed to verify the chain.[/]");
-                AnsiConsole.WriteLine($"Daemon message: {response.Message}");
-                return 1;
-            }
-            AnsiConsole.MarkupLine($"[green]The taxchain {settings.ChainId} is valid.[/]");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine("[red]An exception occured during verification.[/]");
-            AnsiConsole.WriteException(ex);
-            return 1;
-        }
-    }
-}
 
 internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
 {
