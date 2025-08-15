@@ -52,7 +52,7 @@ public class PGSQLRepository : IBlockchainRepository
                 prev_hash TEXT NOT NULL,
                 hash TEXT NOT NULL,
                 nonce BIGINT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                timestamp BIGINT NOT NULL,
                 UNIQUE(id, chain_id)
             );",
 
@@ -183,7 +183,7 @@ public class PGSQLRepository : IBlockchainRepository
                     return true;
                 }
                 results.Sort(new Comparer());
-                last = results[^1];
+                last = results[0];
             }
             // Fetch last
             var lastSQL = @"
@@ -285,16 +285,18 @@ public class PGSQLRepository : IBlockchainRepository
 
     private int SetUpGenesisBlock(Guid chainId, NpgsqlConnection conn, NpgsqlTransaction t)
     {
+        Block genBlock = new Block(chainId, "", new());
         var genSql = @"
-            INSERT INTO blocks (chain_id, prev_hash, hash, nonce)
-            VALUES (@chain_id, @prev_hash, @hash, @nonce)
+            INSERT INTO blocks (chain_id, prev_hash, hash, nonce, timestamp)
+            VALUES (@chain_id, @prev_hash, @hash, @nonce, @timestamp)
             RETURNING id
         ";
         var genCmd = new NpgsqlCommand(genSql, conn, t);
         genCmd.Parameters.AddWithValue("chain_id", chainId);
         genCmd.Parameters.AddWithValue("prev_hash", "");
-        genCmd.Parameters.AddWithValue("hash", "");
+        genCmd.Parameters.AddWithValue("hash", genBlock.Hash);
         genCmd.Parameters.AddWithValue("nonce", 0L);
+        genCmd.Parameters.AddWithValue("timestamp", genBlock.Timestamp.Ticks);
         var result = genCmd.ExecuteScalar();
         int? id = result is DBNull ? null : (int?)result;
         return id ?? -1;
@@ -441,7 +443,7 @@ public class PGSQLRepository : IBlockchainRepository
 
     public Block? GetBlock(Guid chainId, int? blockId, NpgsqlConnection connection)
     {
-        if (blockId == null)
+        if (!blockId.HasValue)
             return null;
         try
         {
@@ -454,37 +456,65 @@ public class PGSQLRepository : IBlockchainRepository
             blockCommand.Parameters.AddWithValue("id", blockId);
             blockCommand.Parameters.AddWithValue("chain_id", chainId);
 
-            using var reader = blockCommand.ExecuteReader();
-            if (reader.Read())
+            Block block;
+            using (var reader = blockCommand.ExecuteReader())
             {
-                var id = reader.GetInt32(reader.GetOrdinal("id"));
-                var chain_id = reader.GetGuid(reader.GetOrdinal("chain_id"));
-                var prev_hash = reader.GetString(reader.GetOrdinal("prev_hash"));
-                var hash = reader.GetString(reader.GetOrdinal("hash"));
-                var nonce = reader.GetInt64(reader.GetOrdinal("nonce"));
-                var timestamp = reader.GetDateTime(reader.GetOrdinal("timestamp"));
+                if (reader.Read())
+                {
+                    var id = reader.GetInt32(reader.GetOrdinal("id"));
+                    var chain_id = reader.GetGuid(reader.GetOrdinal("chain_id"));
+                    var prev_hash = reader.GetString(reader.GetOrdinal("prev_hash"));
+                    var hash = reader.GetString(reader.GetOrdinal("hash"));
+                    var nonce = reader.GetInt64(reader.GetOrdinal("nonce"));
+                    var timestamp = new DateTime(reader.GetInt64(reader.GetOrdinal("timestamp")), DateTimeKind.Utc);
 
-                var block = new Block(
-                    chain_id,
-                    prev_hash,
-                    hash,
-                    nonce,
-                    timestamp,
-                    new()
-                );
-
+                    block = new Block(
+                        chain_id,
+                        prev_hash,
+                        hash,
+                        nonce,
+                        timestamp,
+                        new()
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning($"Block not found: id={blockId}, chain_id={chainId}");
+                    return null;
+                }
+            }
+            if (block.PreviousHash == "")  // Genesis block, has no transactions
                 return block;
-            }
-            else
-            {
-                _logger.LogWarning($"Block not found: id={blockId}, chain_id={chainId}");
-                return null;
-            }
+            Transaction transaction = FetchTransaction(chainId, blockId.Value, connection);
+            block.Payload = transaction;
+            return block;
         }
         catch (Exception ex)
         {
             _logger.LogError($"Exception during block fetch: {ex}");
             return null;
+        }
+    }
+
+    private Transaction FetchTransaction(Guid chainId, int blockId, NpgsqlConnection conn)
+    {
+        var transSQL = @"
+            SELECT id, block_id, chain_id, taxpayer_id, amount
+            FROM transactions
+            WHERE block_id=@block_id AND chain_id=@chain_id;
+        ";
+        using var transCmd = new NpgsqlCommand(transSQL, conn);
+        transCmd.Parameters.AddWithValue("block_id", blockId);
+        transCmd.Parameters.AddWithValue("chain_id", chainId);
+        using (var reader = transCmd.ExecuteReader())
+        {
+            if (!reader.Read())
+                throw new Exception("Failed to fetch transaction");
+            return new Transaction(
+                reader.GetGuid(reader.GetOrdinal("id")),
+                reader.GetString(reader.GetOrdinal("taxpayer_id")),
+                reader.GetDecimal(reader.GetOrdinal("amount"))
+            );
         }
     }
 
@@ -504,32 +534,39 @@ public class PGSQLRepository : IBlockchainRepository
             blockCommand.Parameters.AddWithValue("hash", lookupHash);
             blockCommand.Parameters.AddWithValue("chain_id", chainId);
 
-            using var reader = blockCommand.ExecuteReader();
-            if (reader.Read())
+            Block block;
+            int blockId;
+            using (var reader = blockCommand.ExecuteReader())
             {
-                var id = reader.GetInt32(reader.GetOrdinal("id"));
-                var chain_id = reader.GetGuid(reader.GetOrdinal("chain_id"));
-                var prev_hash = reader.GetString(reader.GetOrdinal("prev_hash"));
-                var hash = reader.GetString(reader.GetOrdinal("hash"));
-                var nonce = reader.GetInt64(reader.GetOrdinal("nonce"));
-                var timestamp = reader.GetDateTime(reader.GetOrdinal("timestamp"));
+                if (reader.Read())
+                {
+                    blockId = reader.GetInt32(reader.GetOrdinal("id"));
+                    var chain_id = reader.GetGuid(reader.GetOrdinal("chain_id"));
+                    var prev_hash = reader.GetString(reader.GetOrdinal("prev_hash"));
+                    var hash = reader.GetString(reader.GetOrdinal("hash"));
+                    var nonce = reader.GetInt64(reader.GetOrdinal("nonce"));
+                    var timestamp = new DateTime(reader.GetInt64(reader.GetOrdinal("timestamp")), DateTimeKind.Utc);
 
-                var block = new Block(
-                    chain_id,
-                    prev_hash,
-                    hash,
-                    nonce,
-                    timestamp,
-                    new()
-                );
-
+                    block = new Block(
+                        chain_id,
+                        prev_hash,
+                        hash,
+                        nonce,
+                        timestamp,
+                        new()
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning($"Block not found: hash={lookupHash}, chain_id={chainId}");
+                    return null;
+                }
+            }
+            if (block.PreviousHash == "")
                 return block;
-            }
-            else
-            {
-                _logger.LogWarning($"Block not found: hash={lookupHash}, chain_id={chainId}");
-                return null;
-            }
+            Transaction transaction = FetchTransaction(block.ChainId, blockId, connection);
+            block.Payload = transaction;
+            return block;
         }
         catch (Exception ex)
         {
@@ -582,7 +619,6 @@ public class PGSQLRepository : IBlockchainRepository
             Block? curr = GetBlock(chainId, latestId, connection);
             if (curr == null)
                 return false;
-
             while (curr?.PreviousHash != "") // identifies the genesis block
             {
                 if (curr?.Digest() != curr?.Hash)
@@ -590,10 +626,9 @@ public class PGSQLRepository : IBlockchainRepository
                     _logger.LogWarning($"Digest and hash differ");
                     return false;
                 }
-                Block? next = FindBlockByHash(chainId, curr?.PreviousHash, connection);
-                if (next == null)
+                curr = FindBlockByHash(chainId, curr?.PreviousHash, connection);
+                if (curr == null)
                     return false;
-                curr = next;
             }
             return true;
         }
@@ -786,8 +821,8 @@ public class PGSQLRepository : IBlockchainRepository
     private int? StoreBlock(Block b, NpgsqlConnection conn, NpgsqlTransaction t)
     {
         var genSql = @"
-            INSERT INTO blocks (chain_id, prev_hash, hash, nonce)
-            VALUES (@chain_id, @prev_hash, @hash, @nonce)
+            INSERT INTO blocks (chain_id, prev_hash, hash, nonce, timestamp)
+            VALUES (@chain_id, @prev_hash, @hash, @nonce, @timestamp)
             RETURNING id;
         ";
         var genCmd = new NpgsqlCommand(genSql, conn, t);
@@ -795,6 +830,7 @@ public class PGSQLRepository : IBlockchainRepository
         genCmd.Parameters.AddWithValue("prev_hash", b.PreviousHash);
         genCmd.Parameters.AddWithValue("hash", b.Hash);
         genCmd.Parameters.AddWithValue("nonce", b.Nonce);
+        genCmd.Parameters.AddWithValue("timestamp", b.Timestamp.Ticks);
         var result = genCmd.ExecuteScalar();
         return (result is DBNull) ? null : (int?)result;
     }

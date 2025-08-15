@@ -13,7 +13,7 @@ public class Block
         PreviousHash = prevHash;
         Nonce = 0L;
         Payload = t;
-        Timestamp = DateTime.Now;
+        Timestamp = DateTime.UtcNow;
         Hash = Digest();
     }
 
