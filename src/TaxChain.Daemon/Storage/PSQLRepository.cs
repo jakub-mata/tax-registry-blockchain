@@ -856,7 +856,8 @@ public class PGSQLRepository : IBlockchainRepository
             }
             else
             {
-                return false;
+                // No such blockchain, which is a valid state
+                return true;
             }
             return true;
         }
