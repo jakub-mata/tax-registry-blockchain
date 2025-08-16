@@ -146,11 +146,6 @@ public class PGSQLRepository : IBlockchainRepository
         }
     }
 
-    public bool Fetch(Guid chainId, out Block[] blocks)
-    {
-        throw new NotImplementedException();
-    }
-
     public bool FetchPending(Guid chainId, out Transaction? transaction)
     {
         transaction = null;
@@ -868,6 +863,167 @@ public class PGSQLRepository : IBlockchainRepository
         catch (Exception ex)
         {
             _logger.LogError("Failed to retrieve blockchain from PGSQL database: {ex}", ex);
+            return false;
+        }
+    }
+
+    public bool Fetch(Guid chainId, out List<Block> blocks)
+    {
+        blocks = new List<Block>();
+        try
+        {
+            using var connection = GetConnection();
+            connection.Open();
+            // Fetch latest block
+            var latestBlockSql = @"
+                SELECT latest_block
+                FROM chains
+                WHERE id=@id;
+            ";
+            var latestBlockCmd = new NpgsqlCommand(latestBlockSql, connection);
+            latestBlockCmd.Parameters.AddWithValue("id", chainId);
+            var result = latestBlockCmd.ExecuteScalar();
+            int? blockId = (result is DBNull)
+                ? null
+                : (int?)result;
+            if (blockId == null)
+            {
+                _logger.LogWarning("Failed to convert latest block id to int");
+                return false;
+            }
+
+            // Fetch block
+            Block? curr = GetBlock(chainId, blockId, connection);
+            if (curr == null)
+                return false;
+            blocks.Add(curr);
+            while (true)
+            {
+                curr = FindBlockByHash(chainId, curr.PreviousHash, connection);
+                if (curr == null)
+                {
+                    _logger.LogWarning($"Stopped prematurely at {blocks.Count}th index");
+                    return false;
+                }
+                blocks.Add(curr);
+                if (curr.PreviousHash == "")
+                {
+                    _logger.LogWarning($"Reached the beginning, total of {blocks.Count} blocks");
+                    break;
+                }
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Exception when fetching all blocks: {ex}");
+            return false;
+        }
+    }
+
+    public bool ReplaceChainBlocks(Guid chainId, List<Block> blocks)
+    {
+        try
+        {
+            using var conn = GetConnection();
+            conn.Open();
+            // Deleting all blocks from blockchain (transactions DELETE ON CASCADE)
+            var deleteBlocksSql = @"
+                DELETE FROM blocks WHERE chain_id=@chain_id;
+            ";
+            using (var deleteBlocksCmd = new NpgsqlCommand(deleteBlocksSql, conn))
+            {
+                deleteBlocksCmd.Parameters.AddWithValue("chain_id", chainId);
+                if (!(deleteBlocksCmd.ExecuteNonQuery() > 0))
+                    return false;
+            }
+
+            using var transaction = conn.BeginTransaction();
+            for (int i = blocks.Count - 1; i >= 0; --i)
+            {
+                int? newId = StoreBlock(blocks[i], conn, transaction);
+                if (!newId.HasValue)
+                {
+                    _logger.LogError("Failed to replace blocks");
+                    return false;
+                }
+                bool ok = StoreTransaction(chainId, newId.Value, blocks[i].Payload, conn, transaction);
+                if (!ok)
+                {
+                    _logger.LogError("Failed to store a transaction when replacing all blocks");
+                    return false;
+                }
+                if (i == blocks.Count - 1)
+                {
+                    ok = UpdateLatestBlock(chainId, newId, conn, transaction);
+                    if (!ok)
+                    {
+                        _logger.LogError("Failed to update latest block when replacing all blocks");
+                        return false;
+                    }
+                }
+            }
+            transaction.Commit();
+            return true;
+            
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Exception when replacing all blocks: {ex}", ex);
+            return false;
+        }
+    }
+
+    public bool CountBlocks(Guid chainId, out int count)
+    {
+        count = 0;
+        try
+        {
+            using var connection = GetConnection();
+            connection.Open();
+            // Fetch latest block
+            var latestBlockSql = @"
+                SELECT latest_block
+                FROM chains
+                WHERE id=@id;
+            ";
+            var latestBlockCmd = new NpgsqlCommand(latestBlockSql, connection);
+            latestBlockCmd.Parameters.AddWithValue("id", chainId);
+            var result = latestBlockCmd.ExecuteScalar();
+            int? blockId = (result is DBNull)
+                ? null
+                : (int?)result;
+            if (blockId == null)
+            {
+                _logger.LogWarning("Failed to convert latest block id to int");
+                return false;
+            }
+
+            // Fetch block
+            Block? curr = GetBlock(chainId, blockId, connection);
+            if (curr == null)
+                return false;
+            ++count;
+            while (true)
+            {
+                curr = FindBlockByHash(chainId, curr.PreviousHash, connection);
+                if (curr == null)
+                {
+                    _logger.LogWarning($"Stopped prematurely at {count}");
+                    return false;
+                }
+                ++count;
+                if (curr.PreviousHash == "")
+                {
+                    _logger.LogWarning($"Reached the beginning, total of {count} blocks");
+                    break;
+                }
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Exception when counting blocks: {ex}");
             return false;
         }
     }

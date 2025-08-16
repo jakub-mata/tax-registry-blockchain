@@ -65,7 +65,7 @@ public interface IBlockchainRepository
     /// <param name="chainId">Blockchain whose blocks are to be fetched</param>
     /// <param name="blocks">The fetched blocks in descending order</param>
     /// <returns>Bool: the success of the operation.</returns>
-    public bool Fetch(Guid chainId, out Block[] blocks);
+    public bool Fetch(Guid chainId, out List<Block> blocks);
     /// <summary>
     /// Fetches all blockchains stored in the local database.
     /// </summary>
@@ -82,8 +82,24 @@ public interface IBlockchainRepository
     /// </summary>
     /// <param name="chainId">The id of the blockchain</param>
     /// <param name="taxpayerId">Taxpayer's id</param>
-    /// <returns></returns>
+    /// <returns>Bool: the success of the operation</returns>
     public bool GatherTaxpayer(Guid chainId, string taxpayerId, out List<Transaction> transactions);
+    /// <summary>
+    /// Replace all blocks and their respective transactions (keeping pending
+    /// transactions) within a given chain with blocks provided. Validation
+    /// not included and has to be done before calling.
+    /// </summary>
+    /// <param name="chainId">The ID of the chain</param>
+    /// <param name="blocks">The replacement blocks in reverse order (newest to oldest)</param>
+    /// <returns>Bool: the success of the operation</returns>
+    public bool ReplaceChainBlocks(Guid chainId, List<Block> blocks);
+    /// <summary>
+    /// Counts the length of the blockchain (the amount of blocks).
+    /// </summary>
+    /// <param name="chainId">The ID of the blockchain</param>
+    /// <param name="count">The amount of blocks within the blockchain</param>
+    /// <returns>Bool: the success of the operation</returns>
+    public bool CountBlocks(Guid chainId, out int count);
 }
 
 public enum AppendResult
