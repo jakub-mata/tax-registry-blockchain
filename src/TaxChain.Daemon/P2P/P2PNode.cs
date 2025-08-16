@@ -11,7 +11,7 @@ using TaxChain.core;
 
 namespace TaxChain.P2P;
 
-public class P2PNode : IDisposable
+public class P2PNode : IDisposable, INetworkManaging
 {
     private readonly IBlockchainRepository _repo;
     private readonly HashSet<PeerConnection> _peers = new();
@@ -43,6 +43,34 @@ public class P2PNode : IDisposable
             peer.Dispose();
         _peers.Clear();
         _logger.LogInformation("Shutdown complete");
+    }
+
+    public async Task SyncChain(Guid chainId, CancellationToken ct = default)
+    {
+        foreach (var peer in _peers)
+        {
+            try
+            {
+                _logger.LogInformation("Syncing chain {ChainId} from peer {Peer}", chainId, peer.PeerId);
+                bool ok =_repo.CountBlocks(chainId, out int blockCount);
+                if (!ok)
+                    throw new Exception("Failed to fetch blockchain count");
+                await peer.SendAsync("ChainInfo", new ChainInfo(chainId, blockCount), ct);
+
+                // Wait for Blocks response
+                var msg = await peer.ReceiveAsync(ct);
+                if (msg?.Type == "Blocks")
+                {
+                    HandleBlocksRequest(msg);
+                    _logger.LogInformation("Successfully synced chain {ChainId}", chainId);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed syncing with peer {Peer}: {ex}", peer.PeerId, ex.Message);
+            }
+        }
     }
 
     public void Dispose()
@@ -86,14 +114,12 @@ public class P2PNode : IDisposable
                     case "ChainInfo":
                         await HandleChainInfoRequest(msg, peer, ct);
                         break;
-
                     case "Blocks":
                         HandleBlocksRequest(msg);
                         break;
                 }
             }
         }
-        catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             _logger.LogError("Exception during peer handling: {ex}", ex);
@@ -105,7 +131,7 @@ public class P2PNode : IDisposable
         }
     }
 
-    public async Task ConnectToPeerAsync(string host, int port, Guid chainId, CancellationToken ct = default)
+    private async Task ConnectToPeerAsync(string host, int port, Guid chainId, CancellationToken ct = default)
     {
         var client = new TcpClient();
         await client.ConnectAsync(host, port, ct);
@@ -125,52 +151,86 @@ public class P2PNode : IDisposable
 
 
     /*--- MESSAGE HANDLERS ---*/
-    private async Task HandleChainInfoRequest(P2PMessage msg, PeerConnection peer, CancellationToken ct)
+    private async Task<bool> HandleChainInfoRequest(P2PMessage msg, PeerConnection peer, CancellationToken ct)
     {
         var ci = msg.Deserialize<ChainInfo>();
         bool ok = _repo.GetBlockchain(ci.ChainId, out Blockchain? b);
         if (!ok)
         {
-            throw new Exception("Failed to fetch blockchain needed by peer");
+            _logger.LogError("Failed to fetch blockchain needed by peer");
+            return false;
         }
         if (!b.HasValue)
         {
-            throw new Exception("Blockchain provided by peer does not exist");
+            _logger.LogWarning("Blockchain provided by peer does not exist");
+            return false;
+        }
+        ok = _repo.CountBlocks(ci.ChainId, out int blockCount);
+        if (!ok || blockCount < ci.BlockCount)
+        {
+            _logger.LogInformation("Our blockchain is shorter, not sending any data...");
+            return false;
         }
 
         ok = _repo.Fetch(ci.ChainId, out List<Block> blocks);
         if (!ok)
         {
-            throw new Exception("Failed to fetch all blocks for peer");
+            _logger.LogError("Failed to fetch all blocks for peer");
+            return false;
         }
         await peer.SendAsync("Blocks", new Blocks(b.Value, blocks), ct);
+        return true;
     }
 
     private void HandleBlocksRequest(P2PMessage msg)
     {
         var blockMsg = msg.Deserialize<Blocks>();
+        if (blockMsg.ChainBlocks.Count == 0)
+        {
+            _logger.LogWarning("Received a 'Blocks' message with no blocks. Assuming an error on peer...");
+            return;
+        }
+
         bool ok = _repo.GetBlockchain(blockMsg.Blockchain.Id, out Blockchain? b);
         if (!ok)
         {
-            throw new Exception("Failed to retrieve a blockchain");
+            _logger.LogError("Failed to retrieve a blockchain");
+            return;
         }
         if (!b.HasValue)
         {
-            throw new Exception("Blockchain provided by peer does not exist...");
+            _logger.LogInformation("Blockchain provided by peer does not exist. Creating now...");
+            ok = _repo.Store(blockMsg.Blockchain);
+            if (!ok)
+            {
+                _logger.LogError("Failed to set up a new blockchain");
+                return;
+            }
         }
-        if (b.Value.Difficulty == blockMsg.Blockchain.Difficulty)
+        if (b.HasValue && (b.Value.Difficulty == blockMsg.Blockchain.Difficulty))
         {
-            throw new Exception("Difficulty of chain does not match");
+            _logger.LogWarning("Difficulty of chain does not match");
+            return;
         }
         bool valid = P2PUtils.ValidateBlocks(blockMsg.ChainBlocks, blockMsg.Blockchain.Difficulty);
         if (!valid)
         {
-            throw new Exception("Blocks provided by peer are not valid");
+            _logger.LogWarning("Blocks provided by peer are not valid");
+            return;
         }
+
+        ok = _repo.CountBlocks(blockMsg.Blockchain.Id, out int ourCount);
+        if (!ok || ourCount > blockMsg.ChainBlocks.Count)
+        {
+            _logger.LogInformation("No updating done, our chain is longer...");
+            return;
+        }
+
         ok = _repo.ReplaceChainBlocks(blockMsg.Blockchain.Id, blockMsg.ChainBlocks);
         if (!ok)
         {
-            throw new Exception("Failed to replace the given blockchain for peer");
+            _logger.LogError("Failed to replace the given blockchain for peer");
+            return;
         }
     }
 }
