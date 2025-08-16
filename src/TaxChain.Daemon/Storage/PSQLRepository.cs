@@ -894,7 +894,7 @@ public class PGSQLRepository : IBlockchainRepository
 
             // Fetch block
             Block? curr = GetBlock(chainId, blockId, connection);
-            if (curr == null)
+            if (curr == null)  // there should be at least the genesis block
                 return false;
             blocks.Add(curr);
             while (true)
@@ -953,7 +953,7 @@ public class PGSQLRepository : IBlockchainRepository
                     _logger.LogError("Failed to store a transaction when replacing all blocks");
                     return false;
                 }
-                if (i == blocks.Count - 1)
+                if (i == 0)
                 {
                     ok = UpdateLatestBlock(chainId, newId, conn, transaction);
                     if (!ok)
