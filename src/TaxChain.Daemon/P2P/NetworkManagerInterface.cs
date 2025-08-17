@@ -6,6 +6,7 @@ namespace TaxChain.Daemon.P2P;
 
 public interface INetworkManaging : IDisposable
 {
-    Task StartAsync(int port, CancellationToken ct = default);
+    Task StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default);
+    void AddKnownPeer(string host, int port);
     Task SyncChain(Guid chainId, CancellationToken ct = default);
 }

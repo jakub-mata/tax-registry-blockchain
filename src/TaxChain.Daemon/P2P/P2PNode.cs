@@ -16,8 +16,11 @@ public class P2PNode : IDisposable, INetworkManaging
 {
     private readonly IBlockchainRepository _repo;
     private readonly HashSet<PeerConnection> _peers = new();
+    private readonly HashSet<IPEndPoint> _knownPeers = new();
     private readonly Guid _localId = Guid.NewGuid();
     private readonly ILogger<P2PNode> _logger;
+    private int _discoveryDelay = 30;
+    private Task? _discoveryTask;
     private TcpListener? _listener;
     private CancellationTokenSource? _cts;
 
@@ -27,23 +30,34 @@ public class P2PNode : IDisposable, INetworkManaging
         _logger = logger;
     }
 
-    public async Task StartAsync(int port, CancellationToken ct = default)
+    public async Task StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default)
     {
+        _discoveryDelay = discoveryDelay;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _listener = new TcpListener(IPAddress.Any, port);
         _listener.Start();
         _ = AcceptLoop(_cts.Token);
+
+        _discoveryTask = DiscoveryLoop(_cts.Token);
     }
 
     public async Task StopAsync()
     {
         _logger.LogInformation("Initiating graceful shutdown of P2P Node");
         _cts?.Cancel();
+        if (_discoveryTask != null)
+            await _discoveryTask;
         _listener?.Stop();
         foreach (var peer in _peers)
             peer.Dispose();
         _peers.Clear();
         _logger.LogInformation("Shutdown complete");
+    }
+
+    public void AddKnownPeer(string host, int port)
+    {
+        var ip = Dns.GetHostAddresses(host).First();
+        _knownPeers.Add(new IPEndPoint(ip, port));
     }
 
     public async Task SyncChain(Guid chainId, CancellationToken ct = default)
@@ -80,18 +94,49 @@ public class P2PNode : IDisposable, INetworkManaging
         StopAsync().GetAwaiter().GetResult();
     }
 
+    private async Task DiscoveryLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            foreach (var endpoint in _knownPeers.ToList())
+            {
+                if (_peers.Any(p => p.RemoteEndPoint!.Equals(endpoint)))
+                    continue; // Already checked
+                try
+                {
+                    _logger.LogInformation("Attempting discovery connect to {Endpoint}", endpoint);
+                    await ConnectToPeerAsync(endpoint, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("Failed to connect to {Endpoint}: {ex}", endpoint, ex.Message);
+                }
+            }
+            await Task.Delay(TimeSpan.FromSeconds(_discoveryDelay), ct);
+        }
+    }
+
     private async Task AcceptLoop(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
             var client = await _listener!.AcceptTcpClientAsync(ct);
             var peer = new PeerConnection(client);
-            await peer.HandshakeAsync(_localId, ct);
-            _peers.Add(peer);
 
             try
             {
-                _ = HandlePeer(peer, ct);
+                await peer.PerformServerHandshake(_localId, ct);
+                if (_peers.Add(peer))
+                {
+                    _ = HandlePeer(peer, ct);
+
+                    // After handshake, share peers for discovery
+                    await peer.SendAsync("PeerList", new PeerListMessage(_knownPeers.Select(p => p.ToString()).ToList()), ct);
+                }
+                else
+                {
+                    peer.Dispose();
+                }
             }
             catch (OperationCanceledException) { }
             catch (ObjectDisposedException) { }
@@ -119,6 +164,9 @@ public class P2PNode : IDisposable, INetworkManaging
                     case "Blocks":
                         HandleBlocksRequest(msg);
                         break;
+                    case "PeerList":
+                        HandlePeerList(msg);
+                        break;
                 }
             }
         }
@@ -133,23 +181,25 @@ public class P2PNode : IDisposable, INetworkManaging
         }
     }
 
-    [Obsolete]
-    private async Task ConnectToPeerAsync(string host, int port, Guid chainId, CancellationToken ct = default)
+    private async Task ConnectToPeerAsync(IPEndPoint endpoint, CancellationToken ct = default)
     {
         var client = new TcpClient();
-        await client.ConnectAsync(host, port, ct);
+        await client.ConnectAsync(endpoint, ct);
         var peer = new PeerConnection(client);
-        await peer.HandshakeAsync(_localId, ct);
-        _peers.Add(peer);
-        _ = HandlePeer(peer, ct);
+        await peer.PerformClientHandshake(_localId, ct);
 
-        // Ask for chain info
-        bool ok = _repo.CountBlocks(chainId, out int blockCount);
-        if (!ok)
+        // Sync our peer list
+        if (_peers.Add(peer))
         {
-            throw new Exception("Failed to count blocks within a blockchain for peer");
+            _ = HandlePeer(peer, ct);
+
+            // Send our known peers for discovery
+            await peer.SendAsync("PeerList", new PeerListMessage(_knownPeers.Select(p => p.ToString()).ToList()), ct);
         }
-        await peer.SendAsync("ChainInfo", new ChainInfo(chainId, blockCount), ct);
+        else
+        {
+            peer.Dispose();
+        }
     }
 
 
@@ -240,6 +290,22 @@ public class P2PNode : IDisposable, INetworkManaging
         {
             _logger.LogError("Failed to replace the given blockchain for peer");
             return;
+        }
+    }
+
+    private void HandlePeerList(P2PMessage? msg)
+    {
+        if (msg == null)
+        {
+            _logger.LogInformation("Msg is null on PeerList, aborting...");
+            return;
+        }
+
+        PeerListMessage peerList = msg.Deserialize<PeerListMessage>();
+        foreach (string peerAddr in peerList.Peers)
+        {
+            if (IPEndPoint.TryParse(peerAddr, out var endPoint))
+                _knownPeers.Add(endPoint);
         }
     }
 }
