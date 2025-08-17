@@ -10,13 +10,14 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading;
+using System.Globalization;
 
 namespace TaxChain.Daemon.Services
 {
     public class ControlService : IHostedService
     {
         private readonly IBlockchainRepository _blockchainRepository;
-        private readonly P2PNetworkManager _networkManager;
+        private readonly INetworkManaging _networkManager;
         private readonly IHostApplicationLifetime _applicationLifetime;
         private readonly ILogger<ControlService> _logger;
         private DateTime? _startupTimestamp;
@@ -26,7 +27,7 @@ namespace TaxChain.Daemon.Services
         private Thread? _listeningThread;
 
         public ControlService(
-            P2PNetworkManager networkManager,
+            INetworkManaging networkManager,
             IBlockchainRepository blockchainRepository,
             IHostApplicationLifetime applicationLifetime,
             ILogger<ControlService> logger)
@@ -38,7 +39,7 @@ namespace TaxChain.Daemon.Services
             _running = 0;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             _startupTimestamp = DateTime.Now;
             _listeningThread = new Thread(ListenForCommands);
@@ -48,13 +49,18 @@ namespace TaxChain.Daemon.Services
             _logger.LogInformation($"Initializing storage...");
             _blockchainRepository.Initialize();
             _logger.LogInformation("Storage successfully initialized");
+            _logger.LogInformation("Booting up networking...");
+            var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "8080";
+            await _networkManager.StartAsync(int.Parse(port), cancellationToken);
+            _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
+            await SynchronizeOurChains();
             Program.VerboseMode = false;
-            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             CancelMining();
+            _networkManager.Dispose();
             _cancellationTokenSource.Cancel();
 
             // Wait for thread to finish (with timeout)
@@ -71,6 +77,22 @@ namespace TaxChain.Daemon.Services
             }
 
             return Task.CompletedTask;
+        }
+
+        private async Task SynchronizeOurChains(CancellationToken ct = default)
+        {
+            bool ok = _blockchainRepository.ListChains(out List<Blockchain> chains);
+            if (!ok)
+            {
+                _logger.LogError("Failed to fetch all chains for sync at startup");
+                return;
+            }
+            foreach (Blockchain chain in chains)
+            {
+                _logger.LogInformation("Syncing chain {id}...", chain.Id.ToString());
+                await _networkManager.SyncChain(chain.Id, ct);
+            }
+            _logger.LogInformation("Finished syncing.");
         }
 
         private void ListenForCommands()
