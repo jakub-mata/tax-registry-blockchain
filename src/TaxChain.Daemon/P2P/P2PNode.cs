@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using TaxChain.core;
+using System.Linq;
 
 namespace TaxChain.Daemon.P2P;
 
@@ -47,12 +48,12 @@ public class P2PNode : IDisposable, INetworkManaging
 
     public async Task SyncChain(Guid chainId, CancellationToken ct = default)
     {
-        foreach (var peer in _peers)
+        foreach (var peer in _peers.ToList())
         {
             try
             {
                 _logger.LogInformation("Syncing chain {ChainId} from peer {Peer}", chainId, peer.PeerId);
-                bool ok =_repo.CountBlocks(chainId, out int blockCount);
+                bool ok = _repo.CountBlocks(chainId, out int blockCount);
                 if (!ok)
                     throw new Exception("Failed to fetch blockchain count");
                 await peer.SendAsync("ChainInfo", new ChainInfo(chainId, blockCount), ct);
@@ -63,12 +64,13 @@ public class P2PNode : IDisposable, INetworkManaging
                 {
                     HandleBlocksRequest(msg);
                     _logger.LogInformation("Successfully synced chain {ChainId}", chainId);
-                    return;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning("Failed syncing with peer {Peer}: {ex}", peer.PeerId, ex.Message);
+                _peers.Remove(peer);
+                peer.Dispose();
             }
         }
     }
