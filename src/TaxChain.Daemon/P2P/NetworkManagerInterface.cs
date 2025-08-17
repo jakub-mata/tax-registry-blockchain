@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TaxChain.P2P;
+namespace TaxChain.Daemon.P2P;
 
 public interface INetworkManaging : IDisposable
 {

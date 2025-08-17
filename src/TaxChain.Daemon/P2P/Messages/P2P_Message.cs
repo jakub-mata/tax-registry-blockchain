@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace TaxChain.P2P.Messages;
+namespace TaxChain.Daemon.P2P.Messages;
 
 public class P2PMessage
 {

@@ -4,9 +4,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using TaxChain.P2P.Messages;
+using TaxChain.Daemon.P2P.Messages;
 
-namespace TaxChain.P2P;
+namespace TaxChain.Daemon.P2P;
 
 public class PeerConnection : IEquatable<PeerConnection>, IDisposable
 {

@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
-using TaxChain.P2P.Messages;
+using TaxChain.Daemon.P2P.Messages;
 using TaxChain.Daemon.Storage;
 using System.Collections.Generic;
 using System;
@@ -9,7 +9,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using TaxChain.core;
 
-namespace TaxChain.P2P;
+namespace TaxChain.Daemon.P2P;
 
 public class P2PNode : IDisposable, INetworkManaging
 {
@@ -131,6 +131,7 @@ public class P2PNode : IDisposable, INetworkManaging
         }
     }
 
+    [Obsolete]
     private async Task ConnectToPeerAsync(string host, int port, Guid chainId, CancellationToken ct = default)
     {
         var client = new TcpClient();
@@ -182,8 +183,14 @@ public class P2PNode : IDisposable, INetworkManaging
         return true;
     }
 
-    private void HandleBlocksRequest(P2PMessage msg)
+    private void HandleBlocksRequest(P2PMessage? msg)
     {
+        if (msg == null)
+        {
+            _logger.LogWarning("Msg is null when handling, aborting...");
+            return;
+        }
+
         var blockMsg = msg.Deserialize<Blocks>();
         if (blockMsg.ChainBlocks.Count == 0)
         {

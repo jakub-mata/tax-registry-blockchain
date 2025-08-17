@@ -3,7 +3,7 @@ using System.Linq;
 using Microsoft.Extensions.FileSystemGlobbing.Internal.PathSegments;
 using TaxChain.core;
 
-namespace TaxChain.P2P;
+namespace TaxChain.Daemon.P2P;
 
 public static class P2PUtils
 {
