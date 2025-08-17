@@ -29,11 +29,11 @@ namespace TaxChain.CLI
                 config.AddCommand<ListCommand>("list")
                     .WithDescription("Lists all blockchains stored locally");
                 config.AddCommand<SyncCommand>("sync")
-                    .WithDescription("Synchronizes blockchain(s) with the network");
+                    .WithDescription("Synchronizes all local blockchain(s) with the network");
                 config.AddCommand<CreateCommand>("create")
                     .WithDescription("Creates a new blockchain");
                 config.AddCommand<FetchCommand>("fetch")
-                    .WithDescription("Adds a blockchain from the network");
+                    .WithDescription("Adds / syncs a blockchain from the network");
 
                 // Blockchain-specific commands (nested under blockchain ID)
                 config.AddBranch<BlockchainSettings>("blockchain", blockchain =>

@@ -53,7 +53,7 @@ namespace TaxChain.Daemon.Services
             var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "8080";
             await _networkManager.StartAsync(int.Parse(port), cancellationToken);
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
-            await SynchronizeOurChains();
+            await SynchronizeOurChains(_cancellationTokenSource.Token);
             Program.VerboseMode = false;
         }
 
@@ -215,7 +215,7 @@ namespace TaxChain.Daemon.Services
             }
         }
 
-        private ControlResponse ProcessCommand(ControlRequest? request)
+        private async Task<ControlResponse> ProcessCommand(ControlRequest? request)
         {
             if (request == null)
                 return new ControlResponse { Success = false, Message = "Invalid request" };
@@ -241,12 +241,12 @@ namespace TaxChain.Daemon.Services
             {
                 "status" => HandleStatusCommand(),
                 "stop" => HandleStopCommand(),
-                "sync" => HandleSyncCommand(request.Parameters),
+                "sync" => await HandleSyncCommand(_cancellationTokenSource.Token),
                 "list" => HandleListCommand(),
                 "remove" => HandleRemoveCommand(request.Parameters),
                 "create" => HandleCreateCommand(request.Parameters),
                 "verify" => HandleVerifyCommand(request.Parameters),
-                "fetch" => HandleFetchCommand(request.Parameters),
+                "fetch" => await HandleFetchCommand(request.Parameters, _cancellationTokenSource.Token),
                 "add" => HandleAddCommand(request.Parameters),
                 "gather" => HandleGatherCommand(request.Parameters),
                 "ledger" => HandleLedgerCommand(request.Parameters),
@@ -581,14 +581,27 @@ namespace TaxChain.Daemon.Services
             return response;
         }
 
-        private ControlResponse HandleSyncCommand(Dictionary<string, object>? parameters)
+        private async Task<ControlResponse> HandleSyncCommand(CancellationToken ct = default)
         {
-            // Implement sync logic
-            return new ControlResponse
+            try
             {
-                Success = true,
-                Message = "Sync initiated"
-            };
+                await SynchronizeOurChains(ct);
+                // Implement sync logic
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Sync successful"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Failed to sync local chains: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception during sync processing: {ex.ToString()}"
+                };
+            }
         }
 
         private ControlResponse HandleListCommand()
@@ -776,13 +789,49 @@ namespace TaxChain.Daemon.Services
             }
         }
 
-        private ControlResponse HandleFetchCommand(Dictionary<string, object>? parameters)
+        private async Task<ControlResponse> HandleFetchCommand(Dictionary<string, object>? parameters, CancellationToken ct = default)
         {
-            return new ControlResponse
+            if (parameters == null)
             {
-                Success = true,
-                Message = "Fetch command received"
-            };
+                _logger.LogWarning("Client has not provided parameters, aborting fetch...");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client has not provided requested parameters, namely [Guid]chainId"
+                };
+            }
+            bool ok = parameters.TryGetValue("chainId", out object? value);
+            if (!ok || value == null)
+            {
+                _logger.LogWarning("Client has not provided parameters, aborting fetch...");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Client has not provided requested parameters, namely [Guid]chainId"
+                };
+            }
+
+            try
+            {
+                Guid chainId = (value is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<Guid>(jsonElement.GetRawText())
+                    : (Guid)value;
+                await _networkManager.SyncChain(chainId, default);
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Fetch command processed successfully"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during fetch: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception during fetch processing: {ex.ToString()}"
+                };
+            }
         }
 
         private ControlResponse HandleAddCommand(Dictionary<string, object>? parameters)

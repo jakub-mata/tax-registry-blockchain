@@ -181,32 +181,14 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
 }
 internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
 {
-    public class Settings : VerboseSettings
-    {
-        [CommandOption("-c|--chain <CHAIN_ID>")]
-        public string? ChainId { get; set; }
-    }
+    public class Settings : VerboseSettings { }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         await EnsureDaemonRunning();
-        int status = settings.ChainId == null
-            ? await SyncAll(settings)
-            : await SyncOne(settings, settings.ChainId);
-        return status;
-    }
 
-    private async Task<int> SyncOne(Settings settings, string id)
-    {
-        bool ok = Guid.TryParse(id, out Guid parsed);
-        if (!ok)
-        {
-            AnsiConsole.MarkupLine("[yellow]Failed to parse provided id.[/]");
-            return 1;
-        }
         try
         {
             var properties = GetParameters(settings.Verbose);
-            properties.Add("chainId", parsed);
             var response = await CLIClient.clientd.SendCommandAsync("sync", properties);
             if (!response.Success)
             {
@@ -214,33 +196,14 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
                 AnsiConsole.WriteLine($"Daemon's message: ${response.Message}");
                 return 1;
             }
-            AnsiConsole.MarkupLine($"[green]Taxchain {id} has been synchronised![/]");
+            AnsiConsole.MarkupLine($"[green]Taxchains have been synchronised![/]");
             return 0;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine("[red]An exception occured during verification.[/]");
+            AnsiConsole.MarkupLine("[red]An exception occured during synchronization.[/]");
             AnsiConsole.WriteException(ex);
             return 1;
         }
-    }
-
-    private async Task<int> SyncAll(Settings settings)
-    {
-        // get all ids, similar to 'list' command
-        Blockchain[]? fetched = await ListCommand.GetAllChains(GetParameters(settings.Verbose));
-        if (fetched == null)
-            return 1;
-        foreach (Blockchain b in fetched)
-        {
-            AnsiConsole.WriteLine($"Synchronising {b.Id.ToString()}...");
-            int status = await SyncOne(settings, b.Id.ToString());
-            if (status == 1)
-                AnsiConsole.MarkupLine($"Failed to sync blockchain with id [yellow]{b.Id.ToString()}[/]");
-            else
-                AnsiConsole.MarkupLine($"Successfully synced blockchain with id [green]{b.Id.ToString()}[/]");
-        }
-        AnsiConsole.WriteLine("Synchronisation has finished");
-        return 0;
     }
 }
