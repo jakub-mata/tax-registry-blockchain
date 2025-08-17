@@ -51,7 +51,8 @@ namespace TaxChain.Daemon.Services
             _logger.LogInformation("Storage successfully initialized");
             _logger.LogInformation("Booting up networking...");
             var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "8080";
-            await _networkManager.StartAsync(int.Parse(port), cancellationToken);
+            var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "30";
+            await _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
             await SynchronizeOurChains(_cancellationTokenSource.Token);
             Program.VerboseMode = false;
@@ -114,6 +115,7 @@ namespace TaxChain.Daemon.Services
 
                     await HandleClientConnection(pipeServer);
                     _logger.LogInformation("Client connection handled");
+                    Program.VerboseMode = false;
                 }
                 catch (OperationCanceledException)
                 {
