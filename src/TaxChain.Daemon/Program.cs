@@ -27,8 +27,8 @@ namespace TaxChain.Daemon
                 .ConfigureServices((hostContext, services) =>
                     {
                         services.AddHostedService<Services.ControlService>();
+                        services.AddSingleton<INetworkManaging, P2PNode>();
                         services.AddSingleton<Storage.IBlockchainRepository, Storage.PGSQLRepository>();
-                        services.AddSingleton<P2PNetworkManager>();
                         services.AddSingleton(() => VerboseMode);
                     })
                 .Build();
