@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Security.Authentication.ExtendedProtection;
 using System.Text.Json;
@@ -206,4 +208,47 @@ internal sealed class SyncCommand : BaseAsyncCommand<SyncCommand.Settings>
             return 1;
         }
     }
+}
+
+internal sealed class ConnectCommand : BaseAsyncCommand<ConnectCommand.Settings>
+{
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
+    {
+        await EnsureDaemonRunning();
+        try
+        {
+            var properties = GetParameters(settings.Verbose);
+            if (settings.Host == null || !settings.Port.HasValue)
+            {
+                AnsiConsole.MarkupLine("[red]Failed to provide necessary arguments.");
+                return 1;
+            }
+            properties.Add("host", settings.Host);
+            properties.Add("port", settings.Port);
+            var response = await CLIClient.clientd.SendCommandAsync("connect", properties);
+            if (!response.Success)
+            {
+                AnsiConsole.MarkupLine("[red]Connection failed.[/]");
+                AnsiConsole.WriteLine($"Daemon's message: ${response.Message}");
+                return 1;
+            }
+            AnsiConsole.MarkupLine($"[green]Connection to peer has been established![/]");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine("[red]An exception occured while connecting to peer.[/]");
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+    }
+
+    public class Settings : VerboseSettings
+    {
+        [CommandOption("--host <HOST IP OR ADDRESS NAME>")]
+        public required string? Host { get; set; }
+        [CommandOption("--port <PORT>")]
+        public required int? Port { get; set; }
+    }
+
 }

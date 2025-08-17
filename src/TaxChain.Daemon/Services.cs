@@ -254,8 +254,76 @@ namespace TaxChain.Daemon.Services
                 "ledger" => HandleLedgerCommand(request.Parameters),
                 "mine" => HandleMineCommand(request.Parameters),
                 "info" => HandleInfoCommand(request.Parameters),
+                "connect" => HandleConnectCommand(request.Parameters),
                 _ => new ControlResponse { Success = false, Message = $"Unknown command: {request.Command}" }
             };
+        }
+
+        private ControlResponse HandleConnectCommand(Dictionary<string, object>? parameters)
+        {
+            if (parameters == null)
+            {
+                _logger.LogWarning("Client has not provided necessary parameters, namely [string]host");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "No [string]host parameter"
+                };
+            }
+            bool ok = parameters.TryGetValue("host", out object? hostValue);
+            if (!ok || hostValue == null)
+            {
+                _logger.LogWarning("Client has not provided necessary parameters, namely [string]host");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "No [string]host parameter"
+                };
+            }
+            ok = parameters.TryGetValue("port", out object? portValue);
+            if (!ok || portValue == null)
+            {
+                _logger.LogWarning("Client has not provided necessary parameters, namely [int]port");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "No [int]port parameter"
+                };
+            }
+
+            try
+            {
+                string? host = (hostValue is JsonElement jsonElement)
+                    ? JsonSerializer.Deserialize<string>(jsonElement.GetRawText())
+                    : (string?)hostValue;
+                int? port = (portValue is JsonElement jsonElement1)
+                    ? JsonSerializer.Deserialize<int>(jsonElement1.GetRawText())
+                    : (int?)portValue;
+                if (host == null || !port.HasValue)
+                {
+                    _logger.LogWarning("Failed to convert parameters");
+                    return new ControlResponse
+                    {
+                        Success = false,
+                        Message = "Failed to convert provided parameters"
+                    };
+                }
+                _networkManager.AddKnownPeer(host, port.Value);
+                return new ControlResponse
+                {
+                    Success = true,
+                    Message = "Successfully added the peer"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception during connect command: {ex}", ex);
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = $"Exception: {ex}",
+                };
+            }
         }
 
         private ControlResponse HandleInfoCommand(Dictionary<string, object>? parameters)

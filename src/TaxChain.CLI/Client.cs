@@ -34,6 +34,8 @@ namespace TaxChain.CLI
                     .WithDescription("Creates a new blockchain");
                 config.AddCommand<FetchCommand>("fetch")
                     .WithDescription("Adds / syncs a blockchain from the network");
+                config.AddCommand<ConnectCommand>("connect")
+                    .WithDescription("Adds a peer to known peers of our network");
 
                 // Blockchain-specific commands (nested under blockchain ID)
                 config.AddBranch<BlockchainSettings>("blockchain", blockchain =>
