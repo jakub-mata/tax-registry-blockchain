@@ -53,6 +53,9 @@ The base command for this type of commands is `dotnet run --project ./src/TaxCha
 - `list`
     - Lists all locally stored blockchains (their names, rewards, and difficulties).
 
+- `connect --host <HOST IP OR ADDRESS> --port <PORT>`
+    - Connects to the specified address and adds this peer to our network.
+
 #### Individual blockchain commands
 
 The base command for this type of commands is `dotnet run --project ./src/TaxChain.CLI/TaxChain.csproj <BLOCKCHAIN_ID>`. If unsure about the particular blockchain's ID, run the `list` command mentioned above.
