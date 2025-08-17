@@ -95,7 +95,7 @@ namespace TaxChain.Daemon.Services
             _logger.LogInformation("Finished syncing.");
         }
 
-        private void ListenForCommands()
+        private async void ListenForCommands()
         {
             _logger.LogInformation("Control service listening for commands...");
 
@@ -112,7 +112,7 @@ namespace TaxChain.Daemon.Services
 
                     _logger.LogInformation("Client connected");
 
-                    HandleClientConnection(pipeServer);
+                    await HandleClientConnection(pipeServer);
                     _logger.LogInformation("Client connection handled");
                 }
                 catch (OperationCanceledException)
@@ -165,7 +165,7 @@ namespace TaxChain.Daemon.Services
             }
         }
 
-        private void HandleClientConnection(NamedPipeServerStream pipe)
+        private async Task HandleClientConnection(NamedPipeServerStream pipe)
         {
             try
             {
@@ -180,7 +180,7 @@ namespace TaxChain.Daemon.Services
                     {
                         _logger.LogInformation("Received command");
                         var request = JsonSerializer.Deserialize<ControlRequest>(commandLine);
-                        var response = ProcessCommand(request);
+                        var response = await ProcessCommand(request);
                         var responseJson = JsonSerializer.Serialize(response);
                         writer.WriteLine(responseJson);
                         _logger.LogInformation("Command processed successfully");
