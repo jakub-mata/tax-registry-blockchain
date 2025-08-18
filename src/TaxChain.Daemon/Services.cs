@@ -605,6 +605,7 @@ namespace TaxChain.Daemon.Services
         {
             var process = Environment.ProcessId;
             var uptime = DateTime.Now - _startupTimestamp.GetValueOrDefault(DateTime.Now);
+            Tuple<bool, DateTime> status = _networkManager.GetStatus();
 
             return new ControlResponse
             {
@@ -617,6 +618,8 @@ namespace TaxChain.Daemon.Services
                     Uptime = uptime,
                     TimeStamp = DateTime.UtcNow,
                     Mining = _running == 1,
+                    SyncSuccess = status.Item1,
+                    SyncLast = status.Item2,
                 }
             };
         }

@@ -19,6 +19,7 @@ public class P2PNode : IDisposable, INetworkManaging
     private readonly HashSet<IPEndPoint> _knownPeers = new();
     private readonly Guid _localId = Guid.NewGuid();
     private readonly ILogger<P2PNode> _logger;
+    public SyncStatus Status { get; set; }
     private int _discoveryDelay = 30;
     private Task? _discoveryTask;
     private TcpListener? _listener;
@@ -28,6 +29,7 @@ public class P2PNode : IDisposable, INetworkManaging
     {
         _repo = repo;
         _logger = logger;
+        Status = new SyncStatus { Success = true, DateTime = new DateTime() };
     }
 
     public async Task StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default)
@@ -53,6 +55,8 @@ public class P2PNode : IDisposable, INetworkManaging
         _peers.Clear();
         _logger.LogInformation("Shutdown complete");
     }
+
+    public Tuple<bool, DateTime> GetStatus() => new Tuple<bool, DateTime>(Status.Success, Status.DateTime);
 
     public void AddKnownPeer(string host, int port)
     {
@@ -96,23 +100,38 @@ public class P2PNode : IDisposable, INetworkManaging
 
     private async Task DiscoveryLoop(CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        try
         {
-            foreach (var endpoint in _knownPeers.ToList())
+            while (!ct.IsCancellationRequested)
             {
-                if (_peers.Any(p => p.RemoteEndPoint!.Equals(endpoint)))
-                    continue; // Already checked
-                try
+                bool ok = true;
+                //Console.WriteLine("Starting discovery...");
+                foreach (var endpoint in _knownPeers.ToList())
                 {
-                    _logger.LogInformation("Attempting discovery connect to {Endpoint}", endpoint);
-                    await ConnectToPeerAsync(endpoint, ct);
+                    if (_peers.Any(p => p.RemoteEndPoint!.Equals(endpoint)))
+                        continue; // Already checked
+                    try
+                    {
+                        _logger.LogInformation("Attempting discovery connect to {Endpoint}", endpoint);
+                        await ConnectToPeerAsync(endpoint, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        ok = false;
+                        _logger.LogError("Failed to connect to {Endpoint}: {ex}", endpoint, ex.Message);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError("Failed to connect to {Endpoint}: {ex}", endpoint, ex.Message);
-                }
+                Status = new SyncStatus { Success = ok, DateTime = new DateTime() };
+                await Task.Delay(TimeSpan.FromSeconds(_discoveryDelay), ct);
             }
-            await Task.Delay(TimeSpan.FromSeconds(_discoveryDelay), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Operation cancelled in discovery");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Exception in discovery: {ex}", ex);
         }
     }
 

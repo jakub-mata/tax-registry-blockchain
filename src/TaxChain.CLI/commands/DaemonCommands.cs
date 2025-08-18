@@ -61,6 +61,8 @@ internal sealed class StatusCommand : BaseAsyncCommand<StatusCommand.Settings>
             AnsiConsole.WriteLine($"Uptime: {statusInfo.Uptime}");
             AnsiConsole.WriteLine($"TimeStamp: {statusInfo.TimeStamp}");
             AnsiConsole.WriteLine($"Mining: {statusInfo.Mining}");
+            AnsiConsole.WriteLine($"Last sync success: {statusInfo.SyncSuccess}");
+            AnsiConsole.WriteLine($"Last sync timestamp: {statusInfo.SyncLast}");
         }
         return 0;
     }

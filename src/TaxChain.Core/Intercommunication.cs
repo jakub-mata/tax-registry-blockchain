@@ -23,4 +23,6 @@ public class StatusInformation
     public TimeSpan? Uptime { get; set; }
     public DateTime TimeStamp { get; set; }
     public bool Mining { get; set; }
+    public bool SyncSuccess { get; set; }
+    public DateTime SyncLast { get; set; }
 }

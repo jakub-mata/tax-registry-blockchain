@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.FileSystemGlobbing.Internal.PathSegments;
 using TaxChain.core;
 
@@ -38,3 +40,4 @@ public static class P2PUtils
         return true;
     }
 }
+public record struct SyncStatus { public bool Success { get; set; } public DateTime DateTime { get; set; } };
