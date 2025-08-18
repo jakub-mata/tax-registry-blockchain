@@ -2,6 +2,11 @@ using System;
 
 namespace TaxChain.core;
 
+/// <summary>
+/// Represents a blockchain configuration.
+/// It includes properties such as the blockchain ID, name, reward amount for mining,
+/// and the difficulty level for mining blocks.
+/// </summary>
 public struct Blockchain
 {
     public Guid Id { get; set; }

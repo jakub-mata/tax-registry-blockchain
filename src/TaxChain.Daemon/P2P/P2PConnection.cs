@@ -9,6 +9,11 @@ using TaxChain.Daemon.P2P.Messages;
 
 namespace TaxChain.Daemon.P2P;
 
+/// <summary>
+/// Represents a connection to a peer in the P2P network.
+/// It handles sending and receiving messages, as well as performing handshakes.
+/// The connection is established over a TCP client and uses a network stream for communication.
+/// </summary>
 public class PeerConnection : IEquatable<PeerConnection>, IDisposable
 {
     private readonly TcpClient _client;
@@ -92,7 +97,7 @@ public class PeerConnection : IEquatable<PeerConnection>, IDisposable
     }
 
     // Methods for IEquatable
-    public bool Equals(PeerConnection? other) => other is not null && PeerId != Guid.Empty &&PeerId == other.PeerId;
+    public bool Equals(PeerConnection? other) => other is not null && PeerId != Guid.Empty && PeerId == other.PeerId;
     public override bool Equals(object? obj) => Equals(obj as PeerConnection);
     public override int GetHashCode() => PeerId.GetHashCode();
 

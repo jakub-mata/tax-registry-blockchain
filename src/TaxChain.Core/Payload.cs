@@ -3,6 +3,10 @@ using System.ComponentModel;
 
 namespace TaxChain.core;
 
+/// <summary>
+/// Represents a transaction, each relating to a block in the blockchain.
+/// Each transaction has a unique ID, a taxpayer ID (or SSN), and an amount.
+/// </summary>
 public struct Transaction
 {
     public Guid ID { get; set; }

@@ -9,6 +9,10 @@ using TaxChain.core;
 
 namespace TaxChain.CLI.commands;
 
+/// <summary>
+/// Base class for commands that operate on a blockchain.
+/// It includes the blockchain ID as a required argument and a verbose option.
+/// </summary>
 public class BlockchainSettings : CommandSettings
 {
     [CommandArgument(0, "<BLOCKCHAIN_ID>")]

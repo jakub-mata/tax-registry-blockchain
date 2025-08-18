@@ -7,6 +7,11 @@ using Spectre.Console.Cli;
 
 namespace TaxChain.CLI.commands
 {
+    /// <summary>
+    /// Base class for all async commands in the CLI.
+    /// Provides common functionality such as starting the daemon and handling verbose settings.
+    /// </summary>
+    /// <typeparam name="TSettings"></typeparam>
     public abstract class BaseAsyncCommand<TSettings> : AsyncCommand<TSettings>
     where TSettings : CommandSettings
     {
@@ -17,6 +22,11 @@ namespace TaxChain.CLI.commands
             Console = AnsiConsole.Console;
         }
 
+        /// <summary>
+        /// Ensures that the daemon is running before executing the command.
+        /// If the daemon is not running, it attempts to start it.
+        /// </summary>
+        /// <returns></returns>
         protected async Task EnsureDaemonRunning()
         {
             // Check if daemon is running, start if needed
@@ -34,6 +44,10 @@ namespace TaxChain.CLI.commands
             }
         }
 
+        /// <summary>
+        /// Base class for command settings that includes a verbose option.
+        /// This allows commands to provide more detailed output when requested.
+        /// </summary>
         public class VerboseSettings : CommandSettings
         {
             [CommandOption("--verbose")]
