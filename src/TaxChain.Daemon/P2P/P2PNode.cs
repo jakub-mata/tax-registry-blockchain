@@ -33,7 +33,7 @@ public class P2PNode : IDisposable, INetworkManaging
     {
         _repo = repo;
         _logger = logger;
-        Status = new SyncStatus { Success = true, DateTime = new DateTime() };
+        Status = new SyncStatus { Success = true, DateTime = DateTime.UtcNow };
     }
 
     public async Task StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default)
@@ -125,7 +125,7 @@ public class P2PNode : IDisposable, INetworkManaging
                         _logger.LogError("Failed to connect to {Endpoint}: {ex}", endpoint, ex.Message);
                     }
                 }
-                Status = new SyncStatus { Success = ok, DateTime = new DateTime() };
+                Status = new SyncStatus { Success = ok, DateTime = DateTime.UtcNow };
                 await Task.Delay(TimeSpan.FromSeconds(_discoveryDelay), ct);
             }
         }
