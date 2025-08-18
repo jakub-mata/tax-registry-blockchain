@@ -245,7 +245,7 @@ internal sealed class ConnectCommand : BaseAsyncCommand<ConnectCommand.Settings>
 
     public class Settings : VerboseSettings
     {
-        [CommandOption("--host <HOST IP OR ADDRESS NAME>")]
+        [CommandOption("--host <HOST-IP-OR-ADDRESS-NAME>")]
         public required string? Host { get; set; }
         [CommandOption("--port <PORT>")]
         public required int? Port { get; set; }
