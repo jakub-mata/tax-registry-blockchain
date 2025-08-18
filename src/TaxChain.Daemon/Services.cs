@@ -14,6 +14,11 @@ using System.Globalization;
 
 namespace TaxChain.Daemon.Services
 {
+    /// <summary>
+    /// ControlService is responsible for managing the lifecycle of the daemon,
+    /// including starting and stopping the network, handling commands from clients,
+    /// and performing various operations on the blockchain.
+    /// </summary>
     public class ControlService : IHostedService
     {
         private readonly IBlockchainRepository _blockchainRepository;
@@ -733,7 +738,7 @@ namespace TaxChain.Daemon.Services
             {
                 Guid id = (chainId is JsonElement jsonElement)
                     ? JsonSerializer.Deserialize<Guid>(jsonElement.GetRawText())
-                    :(Guid)chainId;
+                    : (Guid)chainId;
                 ok = _blockchainRepository.RemoveChain(id);
                 if (!ok)
                 {
@@ -781,10 +786,10 @@ namespace TaxChain.Daemon.Services
             }
             try
             {
-                Blockchain b = (chain is JsonElement jsonElement) 
+                Blockchain b = (chain is JsonElement jsonElement)
                     ? JsonSerializer.Deserialize<Blockchain>(jsonElement.GetRawText())
                     : (Blockchain)chain;
-                
+
                 ok = _blockchainRepository.Store(b);
                 if (!ok)
                 {
@@ -820,7 +825,7 @@ namespace TaxChain.Daemon.Services
                 {
                     Success = false,
                     Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
-                };        
+                };
             }
             bool ok = parameters.TryGetValue("chainId", out object? id);
             if (!ok || id == null)
@@ -829,7 +834,7 @@ namespace TaxChain.Daemon.Services
                 {
                     Success = false,
                     Message = "Client failed to provide necessary parameters, namely '[Guid]chainId'",
-                };  
+                };
             }
             try
             {
@@ -915,7 +920,7 @@ namespace TaxChain.Daemon.Services
                 {
                     Success = false,
                     Message = "Client failed to provide necessary parameters, namely '[Transaction]transaction'",
-                };          
+                };
             }
             bool ok = parameters.TryGetValue("transaction", out object? t);
             if (!ok || t == null)
@@ -939,7 +944,7 @@ namespace TaxChain.Daemon.Services
             {
                 Transaction transaction = (t is JsonElement jsonElement)
                     ? JsonSerializer.Deserialize<Transaction>(jsonElement.GetRawText())
-                    :(Transaction)t;
+                    : (Transaction)t;
                 Guid chainId = (id is JsonElement jsonElement1)
                     ? JsonSerializer.Deserialize<Guid>(jsonElement1.GetRawText())
                     : (Guid)id;
@@ -995,7 +1000,7 @@ namespace TaxChain.Daemon.Services
                 {
                     Success = false,
                     Message = "Client failed to provide necessary parameters, namely '[int]number'",
-                };  
+                };
             }
             try
             {

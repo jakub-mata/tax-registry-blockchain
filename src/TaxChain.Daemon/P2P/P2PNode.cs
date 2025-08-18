@@ -12,6 +12,10 @@ using System.Linq;
 
 namespace TaxChain.Daemon.P2P;
 
+/// <summary>
+/// Represents a P2P node that manages peer connections and facilitates blockchain synchronization.
+/// It handles discovery of peers, connection management, and synchronization of blockchain data.
+/// </summary>
 public class P2PNode : IDisposable, INetworkManaging
 {
     private readonly IBlockchainRepository _repo;
