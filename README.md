@@ -10,12 +10,21 @@ The daemon does not have to be running continuously. All the blockchain informat
 
 ## Installation
 
-Run `git clone` on this repository. Inside the repository, run dotnet    
+Run `git clone` on this repository.  
 
 ## Requirements
 
-### App setup
-The application is set up using a `.env` file. Navigate to the project's base directory. We have to create an env file with authentication information:
+The current version is only supported on Linux.
+
+- .NET SDK version 8 or higher
+    - check [.NET docs](https://learn.microsoft.com/en-us/dotnet/core/sdk) for more info
+- PostgreSQL database
+    - make sure you have `postgresql` and `postgres-contrib` installed. If not, run `sudo apt install postgresql postgres-contrib` if you have the APT package-manager.
+    - you can check you have it installed by running `psql --version`
+    - once you have it installed, we need to set up authentication for the database, see [App setup](#app-setup) below.
+
+## App setup
+The application is set up using a `.env` file. Navigate to the project's base directory, go to `./src/TaxChain.Daemon` and create a new `.env` file here. Let's set it up to contain this information:
 ```.env
 TAXCHAIN_DB_HOST=postgres
 TAXCHAIN_DB_PORT=5432  #Default port for PostgreSQL
@@ -28,14 +37,25 @@ DISCOVERY_INTERVAL=30  #The time interval of peer discovery in our network
 ```
 We mostly have to configure our database connection. Make sure you're correctly setting up TAXCHAIN_ADMIN_DB: the administrator's credentials for accessing PostgreSQL - the app uses it for creating a new database (defined by TAXCHAIN_DB_USER, TAXCHAIN_DB_PASSWORD, and TAXCHAIN_DB_NAME) if it does not exist yet. If unsure about the setup, use the values displayed above, only changing TAXCHAIN_ADMIN_DB to match your own credentials.
 
-- .NET SDK version 8 or higher
-    - check [.NET docs](https://learn.microsoft.com/en-us/dotnet/core/sdk) for more info
-- PostgreSQL database
-    - Linux: make sure you have `postgresql` and `postgres-contrib` installed. If not, run `sudo apt install postgresql postgres-contrib` if you have the APT package-manager.
-    - you can check you have it installed by running `psql --version`
-    - Windows
-    - once you have it installed, we need to set up authentication for the database, see [Installation](#installation) above.
--
+> **Warning**:
+You may encounter an issue with peer authentication. By default, postgresql uses peer authentication for the postgres superuser. We will have to switch to `md5` authentication.
+> First, make sure you know your postgres password. If you don't, update it using 
+```
+sudo -u postgres psql
+ALTER USER postgres PASSWORD 'postgres';
+\q
+```
+>You will use this password in `.env`.
+Please, find your hba_file (e.g. by running `sudo -u postgres psql -c 'SHOW hba_file';`) and make sure that 
+```
+local    all       postgres                   peer
+```
+> is changed to
+```
+local    all       postgres                   md5
+```
+> Run `sudo systemctl restart postgresql`. Now we have our DB setup ready.
+
 
 ## Usage
 
@@ -54,14 +74,18 @@ dotnet run --project ./src/TaxChain.CLI/TaxChain.csproj *CLI arguments*
 - `start`
     - Starts up the daemon. This command is not necessary as [blockchain management commands](#blockchain-management) and [individual-blockchain commands](#individual-blockchain-commands) check the daemon's status and boot it up if needed.
 
-- `stop`
+- `kill`
     - Gracefully stops the daemon. 
 
 - `status`
     - Retrives the status of daemon - whether it is running, for how long, whether it is currently mining, etc.
 
 #### Blockchain management
-The base command for this type of commands is `dotnet run --project ./src/TaxChain.CLI/TaxChain.csproj <BLOCKCHAIN_ID>`. All arguments in this section can be postfixed with the `--verbose` option to display more logging.
+The base command for this type of commands is 
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.csproj blockchain <BLOCKCHAIN_ID>
+``` 
+All arguments in this section can be postfixed with the `--verbose` option to display more logging.
 
 - `sync`
     - Synchronizes all locally stored blockchains against the network. The conflict resolution is straightforward (and not that safe - again, this project is not meant for real administation): the longest valid blockchain is the correct one. The definition of a valid blockchain is described lower under the `verify` command.
@@ -110,3 +134,120 @@ The base command for this type of commands is `dotnet run --project ./src/TaxCha
 
 
 ### Example usage
+
+Let's go through creating our own blockchain, adding a block and mining it.
+
+*Let's create a new blockchain*
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.CLI.csproj create
+
+What's the name of the new taxchain? BrandNew
+What's the reward amount for mining? 2 
+What's the difficulty for proof-of-work (1-5 range recommended)? 3
+Sending creation request to the daemon...
+Checking daemon status...
+Connecting to the daemon. Might take up to 5 seconds...
+Daemon not running, starting now...
+/home/jakub/Documents/uk/csharp/tax-registry-blockchain/src/TaxChain.Daemon/P2P/P2PNode.cs(39,23): warning CS1998: This async method lacks 'await' operators and will run synchronously. Consider using the 'await' operator to await non-blocking API calls, or 'await Task.Run(...)' to do CPU-bound work on a background thread. [/home/jakub/Documents/uk/csharp/tax-registry-blockchain/src/TaxChain.Daemon/TaxChain.Daemon.csproj]
+Daemon program runs
+info: TaxChain.Daemon.Services.ControlService[0]
+      Control service started on pid 82866
+info: TaxChain.Daemon.Services.ControlService[0]
+      Initializing storage...
+info: TaxChain.Daemon.Services.ControlService[0]
+      Control service listening for commands...
+info: TaxChain.Daemon.Services.ControlService[0]
+      Waiting for client connection...
+info: TaxChain.Daemon.Services.ControlService[0]
+      Client connected
+info: TaxChain.Daemon.Services.ControlService[0]
+      Received command
+info: TaxChain.Daemon.Services.ControlService[0]
+      Processing command: status
+info: TaxChain.Daemon.Services.ControlService[0]
+      Command processed successfully
+Daemon started successfully
+info: TaxChain.Daemon.Services.ControlService[0]
+      Client connection handled
+Daemon is running now.
+Connecting to the daemon. Might take up to 5 seconds...
+Taxchain creation successful!. Here's its id: 595fe7fc-456f-4425-b585-49e7b5bac9ce
+```
+
+*let's check it has been created*
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.CLI.csproj list
+Checking daemon status...
+Connecting to the daemon. Might take up to 5 seconds...
+Sending a list request to the chain deamon.
+Sending a list request to the chain deamon.
+Connecting to the daemon. Might take up to 5 seconds...
+┌──────────────────────────────────────┬──────────┬──────────────┬────────────┐
+│ chainId                              │ name     │ rewardAmount │ difficulty │
+├──────────────────────────────────────┼──────────┼──────────────┼────────────┤
+│ 9996f34e-fb37-4087-9589-a17311d104f1 │ Bon      │ 2            │ 5          │
+│ 595fe7fc-456f-4425-b585-49e7b5bac9ce │ BrandNew │ 2            │ 3          │
+```
+
+*It is there! Now add a new block*
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.CLI.csproj blockchain 595fe7fc-456f-4425-b585-49e7b5bac9ce add
+
+Type your taxpayer id: JohnSteward
+Write the amount: 30
+Checking daemon status...
+Connecting to the daemon. Might take up to 5 seconds...
+Sending provided transaction to the records...
+Connecting to the daemon. Might take up to 5 seconds...
+Successfully added a block to chain 595fe7fc-456f-4425-b585-49e7b5bac9ce!
+If you want to ensure it gets appended, run the 'mine' command.
+```
+
+*And mine!*
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.CLI.csproj blockchain 595fe7fc-456f-4425-b585-49e7b5bac9ce mine
+Checking daemon status...
+Connecting to the daemon. Might take up to 5 seconds...
+Calling the daemon to start mining...
+Connecting to the daemon. Might take up to 5 seconds...
+Starting mining, looking for 000 prefix
+Found a valid nonce! 91
+Mining of blockchain 595fe7fc-456f-4425-b585-49e7b5bac9ce has started!
+``` 
+
+If you look carefully, you can see the mining process has finished before the client managed to respond - 'Found a valid nonce' message appears once the mining finishes. Let's check the daemon is truly not mining.
+
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.CLI.csproj status
+Connecting to the daemon. Might take up to 5 seconds...
+Daemon is running.
+Daemon's status:
+Status: Running
+Process id: 82866
+Uptime: 00:06:03.2081608
+TimeStamp: 8/18/2025 10:19:34 AM
+Mining: False              <----- NOT MINING
+Last sync success: True
+Last sync timestamp: 8/18/2025 10:19:31 AM
+```
+
+If we try to mine again, nothing happens as no pending transactions are waiting.
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.CLI.csproj blockchain 595fe7fc-456f-4425-b585-49e7b5bac9ce mine
+Checking daemon status...
+Connecting to the daemon. Might take up to 5 seconds...
+Calling the daemon to start mining...
+Connecting to the daemon. Might take up to 5 seconds...
+Nothing to mine...
+```
+
+We can check everything has gone smoothly by running `ledger` or `gather` on our taxpayer:
+```
+dotnet run --project ./src/TaxChain.CLI/TaxChain.CLI.csproj blockchain 595fe7fc-456f-4425-b585-49e7b5bac9ce gather -u JohnSteward
+Checking daemon status...
+Connecting to the daemon. Might take up to 5 seconds...
+Sending a request for the gather command...
+Connecting to the daemon. Might take up to 5 seconds...
+ID: JohnSteward
+Amount: 30.00000000
+```
