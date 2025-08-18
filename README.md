@@ -8,9 +8,34 @@ Users leverage the CLI client to communicate with a daemon. This daemon, running
 
 The daemon does not have to be running continuously. All the blockchain information is stored locally in a durable storage (e.g. PostgreSQL), which is accessed anytime the daemon boots up. If no such storage exists, the daemon sets up a new one. Furthermore, the daemon automatically synchronizes its blockchain information with the network (the interval for synchronization can be configured) and updates this local storage.
 
+## Installation
+
+Run `git clone` on this repository. Inside the repository, run dotnet    
+
 ## Requirements
 
-## Installation
+### App setup
+The application is set up using a `.env` file. Navigate to the project's base directory. We have to create an env file with authentication information:
+```.env
+TAXCHAIN_DB_HOST=postgres
+TAXCHAIN_DB_PORT=5432  #Default port for PostgreSQL
+TAXCHAIN_DB_USER=postgres
+TAXCHAIN_DB_PASSWORD=postgres
+TAXCHAIN_DB_NAME=taxchains
+TAXCHAIN_ADMIN_DB=Host=localhost;Username=postgres;Password=postgres;Database=postgres
+RECEIVER_PORT=4662  #The port for listening for incoming requests
+DISCOVERY_INTERVAL=30  #The time interval of peer discovery in our network
+```
+We mostly have to configure our database connection. Make sure you're correctly setting up TAXCHAIN_ADMIN_DB: the administrator's credentials for accessing PostgreSQL - the app uses it for creating a new database (defined by TAXCHAIN_DB_USER, TAXCHAIN_DB_PASSWORD, and TAXCHAIN_DB_NAME) if it does not exist yet. If unsure about the setup, use the values displayed above, only changing TAXCHAIN_ADMIN_DB to match your own credentials.
+
+- .NET SDK version 8 or higher
+    - check [.NET docs](https://learn.microsoft.com/en-us/dotnet/core/sdk) for more info
+- PostgreSQL database
+    - Linux: make sure you have `postgresql` and `postgres-contrib` installed. If not, run `sudo apt install postgresql postgres-contrib` if you have the APT package-manager.
+    - you can check you have it installed by running `psql --version`
+    - Windows
+    - once you have it installed, we need to set up authentication for the database, see [Installation](#installation) above.
+-
 
 ## Usage
 
