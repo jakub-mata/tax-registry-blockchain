@@ -111,7 +111,6 @@ public class P2PNode : IDisposable, INetworkManaging
             while (!ct.IsCancellationRequested)
             {
                 bool ok = true;
-                Console.WriteLine("Starting discovery...");
                 foreach (var endpoint in _knownPeers.ToList())
                 {
                     if (_peers.Any(p => p.RemoteEndPoint!.Equals(endpoint)))
