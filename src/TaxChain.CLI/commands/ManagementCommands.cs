@@ -1,11 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
-using System.Security.Authentication.ExtendedProtection;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -164,6 +159,7 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
             {
                 AnsiConsole.MarkupLine("[red]Fetch unsuccessful.[/]");
                 AnsiConsole.WriteLine($"Daemon's message: {response.Message}");
+                return 1;
             }
             AnsiConsole.MarkupLine($"[green]Taxchain {settings.ChainId} fetched successfully.[/]");
             if (response.Data != null)
