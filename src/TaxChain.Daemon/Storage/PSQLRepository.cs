@@ -916,7 +916,7 @@ public class PGSQLRepository : IBlockchainRepository
                 blocks.Add(curr);
                 if (curr.PreviousHash == "")
                 {
-                    _logger.LogWarning($"Reached the beginning, total of {blocks.Count} blocks");
+                    _logger.LogInformation($"Reached the beginning, total of {blocks.Count} blocks");
                     break;
                 }
             }
