@@ -19,7 +19,7 @@ The current version is only supported on Linux.
 - .NET SDK version 8 or higher
     - check [.NET docs](https://learn.microsoft.com/en-us/dotnet/core/sdk) for more info
 - PostgreSQL database
-    - make sure you have `postgresql` and `postgres-contrib` installed. If not, run `sudo apt install postgresql postgres-contrib` if you have the APT package-manager.
+    - make sure you have `postgresql` and `postgresql-contrib` installed. If not, run `sudo apt install postgresql postgresql-contrib` if you have the APT package-manager.
     - you can check you have it installed by running `psql --version`
     - once you have it installed, we need to set up authentication for the database, see [App setup](#app-setup) below.
 
