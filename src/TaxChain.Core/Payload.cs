@@ -87,5 +87,7 @@ public enum TaxType
     [Description("consumption")]
     Consumption,
     [Description("tariff")]
-    Tariff
+    Tariff,
+    [Description("reward")]
+    Reward
 }
