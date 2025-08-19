@@ -997,7 +997,7 @@ public class PGSQLRepository : IBlockchainRepository
             if (blockId == null)
             {
                 _logger.LogWarning("Failed to convert latest block id to int");
-                return false;
+                return true;
             }
 
             // Fetch block
