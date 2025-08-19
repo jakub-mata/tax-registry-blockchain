@@ -411,12 +411,24 @@ namespace TaxChain.Daemon.Services
                     Message = "Missing parameter chainId",
                 };
             }
-
+            ok = parameters.TryGetValue("rewardAddress", out object? rewardObject);
+            if (!ok || rewardObject == null)
+            {
+                _logger.LogWarning("Client failed to provide necessary parameters, namely [string]rewardAddress");
+                return new ControlResponse
+                {
+                    Success = false,
+                    Message = "Missing parameter rewardAddress",
+                };
+            }
             try
             {
                 Guid chainId = (chainIdObject is JsonElement jsonElement)
                     ? JsonSerializer.Deserialize<Guid>(jsonElement.GetRawText())
                     : (Guid)chainIdObject;
+                string? taxpayerId = (rewardObject is JsonElement jsonElement1)
+                    ? JsonSerializer.Deserialize<string>(jsonElement1.GetRawText())
+                    : (string?)rewardObject;
                 ok = _blockchainRepository.FetchPending(chainId, out Transaction? transaction);
                 if (!ok)
                 {
@@ -458,7 +470,7 @@ namespace TaxChain.Daemon.Services
                     };
                 }
                 Block toMine = new(chainId, lastBlock[0].Hash, transaction.Value);
-                HandleMiningWorker(toMine, b.Value.Difficulty);
+                HandleMiningWorker(toMine, b.Value.Difficulty, taxpayerId!, b.Value.RewardAmount);
                 return new ControlResponse
                 {
                     Success = true,
@@ -494,7 +506,7 @@ namespace TaxChain.Daemon.Services
             }
         }
 
-        private void HandleMiningWorker(Block toMine, int difficulty)
+        private void HandleMiningWorker(Block toMine, int difficulty, string taxpayerId, float rewardAmount)
         {
             if (Interlocked.Exchange(ref this._running, 1) == 1)
                 throw new InvalidOperationException("Worker already running");
@@ -513,7 +525,17 @@ namespace TaxChain.Daemon.Services
                         _logger.LogError("Failed to store new block");
                         return;
                     }
-                    _logger.LogInformation("Mined block stored.");
+                    _logger.LogInformation("Mined block stored. Sending reward...");
+                    Transaction reward = new(taxpayerId, (decimal)rewardAmount);
+                    Block rewardBlock = new(toMine.ChainId, toMine.Hash, reward);
+                    rewardBlock.Mine(difficulty, token);
+                    result = _blockchainRepository.AppendBlock(rewardBlock, true);
+                    if (result != AppendResult.Success)
+                    {
+                        _logger.LogError("Failed to store the reward block");
+                        return;
+                    }
+                    _logger.LogInformation("Reward block stored.");
                 }
                 catch (OperationCanceledException)
                 {

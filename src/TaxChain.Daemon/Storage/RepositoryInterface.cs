@@ -21,11 +21,12 @@ public interface IBlockchainRepository
     /// </summary>
     /// <param name="block">The block to be appended.</param>
     /// <returns>AppendResult: the result of the operation, see AppendResult</returns>
-    public AppendResult AppendBlock(Block block);
+    public AppendResult AppendBlock(Block block, bool isReward = false);
     /// <summary>
     /// Retrieves the representation of a blockchain with given id from local storage.
     /// </summary>
     /// <param name="chainId">The ID of the blockchain.</param>
+    /// <param name="isReward">Is the block to be appended a reward for mining.</param>
     /// <returns>Bool: the success of the operation</returns>
     public bool GetBlockchain(Guid chainId, out Blockchain? b);
     /// <summary>

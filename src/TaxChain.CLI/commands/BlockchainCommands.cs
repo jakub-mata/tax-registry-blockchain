@@ -246,13 +246,22 @@ internal sealed class RemoveCommand : BaseAsyncCommand<RemoveCommand.Settings>
 
 internal sealed class MineCommand : BaseAsyncCommand<MineCommand.Settings>
 {
-    public class Settings : BlockchainSettings { }
+    public class Settings : BlockchainSettings
+    {
+        [CommandOption("-t|--taxpayer-id <TAXPAYER-ID>")]
+        public string? RewardAddress { get; set; }
+    }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         if (settings.BlockchainId == "")
         {
             AnsiConsole.MarkupLine("[red]Chain Id has not been provided[/]");
+            return 1;
+        }
+        if (settings.RewardAddress == null || settings.RewardAddress == "")
+        {
+            AnsiConsole.MarkupLine("[red]Taxpayer ID needed for rewarding...[/]");
             return 1;
         }
         await EnsureDaemonRunning();
@@ -268,7 +277,8 @@ internal sealed class MineCommand : BaseAsyncCommand<MineCommand.Settings>
             var parameters = new Dictionary<string, object>()
             {
                 {"chainId", chainId},
-                {"verbose", settings.Verbose}
+                {"rewardAddress", settings.RewardAddress},
+                { "verbose", settings.Verbose}
             };
             var response = await CLIClient.clientd.SendCommandAsync("mine", parameters);
             if (!response.Success)

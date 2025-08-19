@@ -683,7 +683,7 @@ public class PGSQLRepository : IBlockchainRepository
         }
     }
 
-    public AppendResult AppendBlock(Block block)
+    public AppendResult AppendBlock(Block block, bool isReward = false)
     {
         try
         {
@@ -727,7 +727,7 @@ public class PGSQLRepository : IBlockchainRepository
             }
 
             // Remove from pending
-            bool ok = RemovePending(block.Payload.ID, conn);
+            bool ok = isReward || RemovePending(block.Payload.ID, conn);
             if (!ok)
             {
                 _logger.LogError("Failed to remove transaction from pending...");
