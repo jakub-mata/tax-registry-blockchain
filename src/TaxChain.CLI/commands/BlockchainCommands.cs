@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Spectre.Console;
@@ -39,9 +40,11 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
         decimal amount = AnsiConsole.Prompt<decimal>(
             new TextPrompt<decimal>("Write the amount:")
         );
+        TaxType tt = SelectTaxType();
         var transaction = new Transaction(
             taxpayerId,
-            amount
+            amount,
+            tt
         );
         return await SendAddRequest(transaction, parsed, settings.Verbose);
     }
@@ -67,7 +70,7 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
             }
             AnsiConsole.MarkupLine($"[green]Successfully added a block to chain {chainId}![/]");
             AnsiConsole.MarkupLine($"[yellow]If you want to ensure it gets appended, run the 'mine' command.[/]");
-            return 0; 
+            return 0;
         }
         catch (Exception ex)
         {
@@ -75,6 +78,18 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
             AnsiConsole.WriteException(ex);
             return 1;
         }
+    }
+
+    private core.TaxType SelectTaxType()
+    {
+        string tt = AnsiConsole.Prompt<string>(
+            new SelectionPrompt<string>()
+                .Title("Select the type of tax:")
+                .PageSize(5)
+                .MoreChoicesText("[grey](Move up and down to reveal more types)[/]")
+                .AddChoices(Transaction.GetTaxTypeValues().Select(value => Transaction.ConvertTaxType(value)))
+            );
+        return Transaction.GetTaxTypeFromString(tt);   
     }
 }
 internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
@@ -140,6 +155,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
         {
             AnsiConsole.MarkupLine($"ID: [green]{t.TaxpayerId}[/]");
             AnsiConsole.MarkupLine($"Amount: [green]{t.Amount}[/]");
+            AnsiConsole.MarkupLine($"Type: ${t.GetTaxType()}");
             AnsiConsole.WriteLine();
         }
     }

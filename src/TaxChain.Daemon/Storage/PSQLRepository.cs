@@ -61,7 +61,8 @@ public class PGSQLRepository : IBlockchainRepository
                 chain_id UUID REFERENCES chains(id) ON DELETE CASCADE,
                 block_id INTEGER REFERENCES blocks(id) ON DELETE CASCADE,
                 taxpayer_id TEXT NOT NULL,
-                amount DECIMAL(18,8) NOT NULL
+                amount DECIMAL(18,8) NOT NULL,
+                tax_type TEXT NOT NULL
             );",
 
             @"CREATE TABLE IF NOT EXISTS pending_transactions (
@@ -69,6 +70,7 @@ public class PGSQLRepository : IBlockchainRepository
                 chain_id UUID REFERENCES chains(id) ON DELETE CASCADE,
                 amount DECIMAL(18,8) NOT NULL,
                 taxpayer_id TEXT NOT NULL,
+                tax_type TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );"
         };
@@ -182,7 +184,7 @@ public class PGSQLRepository : IBlockchainRepository
             }
             // Fetch last
             var lastSQL = @"
-                SELECT id, chain_id, taxpayer_id, amount
+                SELECT id, chain_id, taxpayer_id, amount, tax_type
                 FROM pending_transactions
                 WHERE id=@id AND chain_id=@chainId;
             ";
@@ -196,6 +198,7 @@ public class PGSQLRepository : IBlockchainRepository
                 trans.ID = lastReader.GetGuid(lastReader.GetOrdinal("id"));
                 trans.Amount = lastReader.GetDecimal(lastReader.GetOrdinal("amount"));
                 trans.TaxpayerId = lastReader.GetString(lastReader.GetOrdinal("taxpayer_id"));
+                trans.Type = Transaction.GetTaxTypeFromString(lastReader.GetString(lastReader.GetOrdinal("tax_type")));
                 transaction = trans;
             }
             return true;
@@ -340,14 +343,15 @@ public class PGSQLRepository : IBlockchainRepository
         try
         {
             var tSql = @$"
-            INSERT INTO transactions (id, chain_id, block_id, taxpayer_id, amount)
-            VALUES (@id, @chain_id, @block_id, @taxpayer_id, @amount)";
+            INSERT INTO transactions (id, chain_id, block_id, taxpayer_id, amount, tax_type)
+            VALUES (@id, @chain_id, @block_id, @taxpayer_id, @amount, @type)";
             using var tCommand = new NpgsqlCommand(tSql, connection, transaction);
             tCommand.Parameters.AddWithValue("chain_id", chainId);
             tCommand.Parameters.AddWithValue("block_id", blockId);
             tCommand.Parameters.AddWithValue("id", t.ID);
             tCommand.Parameters.AddWithValue("taxpayer_id", t.TaxpayerId);
             tCommand.Parameters.AddWithValue("amount", t.Amount);
+            tCommand.Parameters.AddWithValue("type", t.GetTaxType());
 
             tCommand.ExecuteNonQuery();
             return true;
@@ -364,13 +368,14 @@ public class PGSQLRepository : IBlockchainRepository
         try
         {
             var tSql = @$"
-            INSERT INTO pending_transactions (id, chain_id, amount, taxpayer_id)
-            VALUES (@id, @chain_id, @amount, @taxpayer_id)";
+            INSERT INTO pending_transactions (id, chain_id, amount, taxpayer_id, tax_type)
+            VALUES (@id, @chain_id, @amount, @taxpayer_id, @type)";
             using var tCommand = new NpgsqlCommand(tSql, connection, transaction);
             tCommand.Parameters.AddWithValue("id", t.ID);
             tCommand.Parameters.AddWithValue("chain_id", chainId);
             tCommand.Parameters.AddWithValue("taxpayer_id", t.TaxpayerId);
             tCommand.Parameters.AddWithValue("amount", t.Amount);
+            tCommand.Parameters.AddWithValue("type", t.GetTaxType());
 
             tCommand.ExecuteNonQuery();
             return true;
@@ -494,7 +499,7 @@ public class PGSQLRepository : IBlockchainRepository
     private Transaction FetchTransaction(Guid chainId, int blockId, NpgsqlConnection conn)
     {
         var transSQL = @"
-            SELECT id, block_id, chain_id, taxpayer_id, amount
+            SELECT id, block_id, chain_id, taxpayer_id, amount, tax_type
             FROM transactions
             WHERE block_id=@block_id AND chain_id=@chain_id;
         ";
@@ -508,7 +513,8 @@ public class PGSQLRepository : IBlockchainRepository
             return new Transaction(
                 reader.GetGuid(reader.GetOrdinal("id")),
                 reader.GetString(reader.GetOrdinal("taxpayer_id")),
-                reader.GetDecimal(reader.GetOrdinal("amount"))
+                reader.GetDecimal(reader.GetOrdinal("amount")),
+                Transaction.GetTaxTypeFromString(reader.GetString(reader.GetOrdinal("tax_type")))
             );
         }
     }
@@ -656,7 +662,7 @@ public class PGSQLRepository : IBlockchainRepository
             using var conn = GetConnection();
             conn.Open();
             string taxpayerSql = @"
-            SELECT id, chain_id, block_id, taxpayer_id, amount
+            SELECT id, chain_id, block_id, taxpayer_id, amount, tax_type
             FROM transactions
             WHERE chain_id=@chain_id AND taxpayer_id=@taxpayer_id;";
             var payerCmd = new NpgsqlCommand(taxpayerSql, conn);
@@ -670,6 +676,7 @@ public class PGSQLRepository : IBlockchainRepository
                     curr.ID = reader.GetGuid(reader.GetOrdinal("id"));
                     curr.Amount = reader.GetDecimal(reader.GetOrdinal("amount"));
                     curr.TaxpayerId = reader.GetString(reader.GetOrdinal("taxpayer_id"));
+                    curr.Type = Transaction.GetTaxTypeFromString(reader.GetString(reader.GetOrdinal("tax_type")));
                     transactions.Add(curr);
                 }
             }
