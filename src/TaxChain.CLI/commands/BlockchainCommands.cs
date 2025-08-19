@@ -155,7 +155,7 @@ internal sealed class GatherCommand : BaseAsyncCommand<GatherCommand.Settings>
         {
             AnsiConsole.MarkupLine($"ID: [green]{t.TaxpayerId}[/]");
             AnsiConsole.MarkupLine($"Amount: [green]{t.Amount}[/]");
-            AnsiConsole.MarkupLine($"Type: ${t.GetTaxType()}");
+            AnsiConsole.MarkupLine($"Type: {t.GetTaxType()}");
             AnsiConsole.WriteLine();
         }
     }
