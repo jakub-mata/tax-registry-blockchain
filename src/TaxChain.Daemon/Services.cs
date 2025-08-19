@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Globalization;
+using System.Reflection;
 
 namespace TaxChain.Daemon.Services
 {
@@ -25,6 +26,7 @@ namespace TaxChain.Daemon.Services
         private readonly INetworkManaging _networkManager;
         private readonly IHostApplicationLifetime _applicationLifetime;
         private readonly ILogger<ControlService> _logger;
+        private int? _port;
         private DateTime? _startupTimestamp;
         private CancellationTokenSource _cancellationTokenSource = new();
         private CancellationTokenSource? _miningCts;
@@ -56,6 +58,7 @@ namespace TaxChain.Daemon.Services
             _logger.LogInformation("Storage successfully initialized");
             _logger.LogInformation("Booting up networking...");
             var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "8080";
+            _port = int.Parse(port);
             var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "30";
             await _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
@@ -645,6 +648,7 @@ namespace TaxChain.Daemon.Services
                     Uptime = uptime,
                     TimeStamp = DateTime.UtcNow,
                     Mining = _running == 1,
+                    Port = _port ?? 0,
                     SyncSuccess = status.Item1,
                     SyncLast = status.Item2,
                 }
