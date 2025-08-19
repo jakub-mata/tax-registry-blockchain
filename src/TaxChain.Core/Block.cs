@@ -61,7 +61,6 @@ public class Block
     public void Mine(int difficulty, CancellationToken token)
     {
         var difficultyPrefix = new string('0', difficulty);
-        Console.WriteLine($"Starting mining, looking for {difficultyPrefix} prefix");
         Nonce = 0;
         while (true)
         {
@@ -73,7 +72,6 @@ public class Block
                 throw new OverflowException("Mining not possible, all possible nonce values tried");
             Nonce++;
         }
-        Console.WriteLine($"Found a valid nonce! {Nonce}");
     }
 
     public override string ToString()
