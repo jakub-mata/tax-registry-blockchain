@@ -63,6 +63,7 @@ internal sealed class StatusCommand : BaseAsyncCommand<StatusCommand.Settings>
             AnsiConsole.WriteLine($"Mining: {statusInfo.Mining}");
             AnsiConsole.WriteLine($"Last sync success: {statusInfo.SyncSuccess}");
             AnsiConsole.WriteLine($"Last sync timestamp: {statusInfo.SyncLast}");
+            AnsiConsole.WriteLine($"Listening on port: ${statusInfo.Port}");
         }
         return 0;
     }
