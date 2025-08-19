@@ -57,7 +57,7 @@ namespace TaxChain.Daemon.Services
             _blockchainRepository.Initialize();
             _logger.LogInformation("Storage successfully initialized");
             _logger.LogInformation("Booting up networking...");
-            var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "8080";
+            var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "4662";
             _port = int.Parse(port);
             var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "30";
             await _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
@@ -651,6 +651,7 @@ namespace TaxChain.Daemon.Services
                     Port = _port ?? 0,
                     SyncSuccess = status.Item1,
                     SyncLast = status.Item2,
+                    ConnectedPeers = _networkManager.CountPeers(),
                 }
             };
         }

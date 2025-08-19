@@ -41,4 +41,5 @@ public class StatusInformation
     public int Port { get; set; }
     public bool SyncSuccess { get; set; }
     public DateTime SyncLast { get; set; }
+    public int ConnectedPeers { get; set; }
 }

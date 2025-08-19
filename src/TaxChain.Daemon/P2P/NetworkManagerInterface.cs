@@ -26,6 +26,11 @@ public interface INetworkManaging : IDisposable
     /// <param name="port">Port</param>
     void AddKnownPeer(string host, int port);
     /// <summary>
+    /// Counts the number of peer in out network.
+    /// </summary>
+    /// <returns>The number of peers in the network.</returns>
+    int CountPeers();
+    /// <summary>
     /// Gets the status of the P2P network manager.
     /// </summary>
     /// <returns>A tuple of (bool, DateTime), bool signifying success and datetime a timestamp.</returns>

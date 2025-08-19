@@ -62,6 +62,8 @@ public class P2PNode : IDisposable, INetworkManaging
 
     public Tuple<bool, DateTime> GetStatus() => new Tuple<bool, DateTime>(Status.Success, Status.DateTime);
 
+    public int CountPeers() => _peers.Count;
+
     public void AddKnownPeer(string host, int port)
     {
         var ip = Dns.GetHostAddresses(host).First();
@@ -109,7 +111,7 @@ public class P2PNode : IDisposable, INetworkManaging
             while (!ct.IsCancellationRequested)
             {
                 bool ok = true;
-                //Console.WriteLine("Starting discovery...");
+                Console.WriteLine("Starting discovery...");
                 foreach (var endpoint in _knownPeers.ToList())
                 {
                     if (_peers.Any(p => p.RemoteEndPoint!.Equals(endpoint)))
@@ -145,7 +147,7 @@ public class P2PNode : IDisposable, INetworkManaging
         {
             var client = await _listener!.AcceptTcpClientAsync(ct);
             var peer = new PeerConnection(client);
-
+            Console.WriteLine("Received a request");
             try
             {
                 await peer.PerformServerHandshake(_localId, ct);
@@ -206,6 +208,7 @@ public class P2PNode : IDisposable, INetworkManaging
 
     private async Task ConnectToPeerAsync(IPEndPoint endpoint, CancellationToken ct = default)
     {
+        _logger.LogInformation("Attempting to connect to peer: {peer}", endpoint.Address);
         var client = new TcpClient();
         await client.ConnectAsync(endpoint, ct);
         var peer = new PeerConnection(client);
