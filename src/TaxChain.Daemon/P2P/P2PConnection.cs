@@ -48,15 +48,22 @@ public class PeerConnection : IEquatable<PeerConnection>, IDisposable
 
     public async Task<P2PMessage?> ReceiveAsync(CancellationToken ct = default)
     {
-        var lengthBuffer = new byte[4];
-        int read = await _stream.ReadAsync(lengthBuffer, ct);
-        if (read == 0) return null;  // connection closed
+        try
+        {
+            var lengthBuffer = new byte[4];
+            int read = await _stream.ReadAsync(lengthBuffer, ct);
+            if (read == 0) return null;  // connection closed
 
-        int length = BitConverter.ToInt32(lengthBuffer);
-        var buffer = new byte[length];
-        await _stream.ReadExactlyAsync(buffer, ct);
+            int length = BitConverter.ToInt32(lengthBuffer);
+            var buffer = new byte[length];
+            await _stream.ReadExactlyAsync(buffer, ct);
 
-        return JsonSerializer.Deserialize<P2PMessage>(Encoding.UTF8.GetString(buffer));
+            return JsonSerializer.Deserialize<P2PMessage>(Encoding.UTF8.GetString(buffer));
+        }
+        catch (OperationCanceledException)
+        {
+            return new P2PMessage();
+        }
     }
 
     /// <summary>
