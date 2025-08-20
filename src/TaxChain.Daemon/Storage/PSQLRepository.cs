@@ -1003,7 +1003,7 @@ public class PGSQLRepository : IBlockchainRepository
                 : (int?)result;
             if (blockId == null)
             {
-                _logger.LogWarning("Failed to convert latest block id to int");
+                _logger.LogWarning("Blockchain not found locally.");
                 return true;
             }
 
@@ -1023,7 +1023,7 @@ public class PGSQLRepository : IBlockchainRepository
                 ++count;
                 if (curr.PreviousHash == "")
                 {
-                    _logger.LogWarning($"Reached the beginning, total of {count} blocks");
+                    _logger.LogInformation($"Reached the beginning, total of {count} blocks");
                     break;
                 }
             }

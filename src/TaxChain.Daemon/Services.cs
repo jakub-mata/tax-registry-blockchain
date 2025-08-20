@@ -70,6 +70,7 @@ namespace TaxChain.Daemon.Services
         {
             CancelMining();
             _networkManager.Dispose();
+            Thread.Sleep(300);
             _cancellationTokenSource.Cancel();
 
             // Wait for thread to finish (with timeout)
@@ -218,6 +219,10 @@ namespace TaxChain.Daemon.Services
                         writer.WriteLine(responseJson);
                     }
                 }
+            }
+            catch (IOException)
+            {
+                _logger.LogInformation("Closed client connection");
             }
             catch (Exception ex)
             {

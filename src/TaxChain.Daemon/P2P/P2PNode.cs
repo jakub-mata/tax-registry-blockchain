@@ -9,6 +9,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using TaxChain.core;
 using System.Linq;
+using System.IO;
 
 namespace TaxChain.Daemon.P2P;
 
@@ -193,6 +194,10 @@ public class P2PNode : IDisposable, INetworkManaging
                         break;
                 }
             }
+        }
+        catch (EndOfStreamException)
+        {
+            _logger.LogInformation("End of stream while peer handling...");
         }
         catch (Exception ex)
         {
