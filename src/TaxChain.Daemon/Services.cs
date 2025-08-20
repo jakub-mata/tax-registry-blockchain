@@ -59,7 +59,7 @@ namespace TaxChain.Daemon.Services
             _logger.LogInformation("Booting up networking...");
             var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "4662";
             _port = int.Parse(port);
-            var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "30";
+            var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "60";
             await _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
             await SynchronizeOurChains(_cancellationTokenSource.Token);

@@ -77,16 +77,20 @@ public class P2PNode : IDisposable, INetworkManaging
         {
             try
             {
+                Console.WriteLine($"Syncing chain {chainId} from peer {peer.PeerId}");
                 _logger.LogInformation("Syncing chain {ChainId} from peer {Peer}", chainId, peer.PeerId);
                 bool ok = _repo.CountBlocks(chainId, out int blockCount);
                 if (!ok)
                     throw new Exception("Failed to fetch blockchain count");
+                Console.WriteLine($"Sending chain info message");
                 await peer.SendAsync("ChainInfo", new ChainInfo(chainId, blockCount), ct);
 
                 // Wait for Blocks response
                 var msg = await peer.ReceiveAsync(ct);
+                Console.WriteLine("Received response");
                 if (msg?.Type == "Blocks")
                 {
+                    Console.WriteLine("Handling request");
                     HandleBlocksRequest(msg);
                     _logger.LogInformation("Successfully synced chain {ChainId}", chainId);
                 }
@@ -124,7 +128,7 @@ public class P2PNode : IDisposable, INetworkManaging
                     catch (Exception ex)
                     {
                         ok = false;
-                        _logger.LogError("Failed to connect to {Endpoint}: {ex}", endpoint, ex.Message);
+                        _logger.LogWarning("Failed to connect to {Endpoint}: {ex}", endpoint, ex.Message);
                     }
                 }
                 Status = new SyncStatus { Success = ok, DateTime = DateTime.UtcNow };
@@ -184,6 +188,7 @@ public class P2PNode : IDisposable, INetworkManaging
                 switch (msg.Type)
                 {
                     case "ChainInfo":
+                        Console.WriteLine("received chaininfo request");
                         await HandleChainInfoRequest(msg, peer, ct);
                         break;
                     case "Blocks":
@@ -309,12 +314,13 @@ public class P2PNode : IDisposable, INetworkManaging
         }
 
         ok = _repo.CountBlocks(blockMsg.Blockchain.Id, out int ourCount);
+        Console.WriteLine("Counted our block count");
         if (!ok || ourCount > blockMsg.ChainBlocks.Count)
         {
             _logger.LogInformation("No updating done, our chain is longer...");
             return;
         }
-
+        Console.WriteLine("Replacing blocks");
         ok = _repo.ReplaceChainBlocks(blockMsg.Blockchain.Id, blockMsg.ChainBlocks);
         if (!ok)
         {
