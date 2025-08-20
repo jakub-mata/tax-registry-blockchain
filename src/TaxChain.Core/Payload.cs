@@ -75,6 +75,11 @@ public struct Transaction
     {
         return $"{ID}+{TaxpayerId}+{Amount}";
     }
+
+    public void Print()
+    {
+        Console.WriteLine(ToString());
+    }
 }
 public enum TaxType
 {

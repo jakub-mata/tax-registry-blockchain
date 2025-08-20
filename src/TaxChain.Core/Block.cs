@@ -78,4 +78,12 @@ public class Block
     {
         return $"{PreviousHash}-{Nonce.ToString()}-{Payload.ToString()}-{Timestamp.Ticks.ToString()}";
     }
+
+    public void Print()
+    {
+        Console.WriteLine("-----");
+        Console.WriteLine($"Prev: ${PreviousHash}");
+        Console.WriteLine($"Hash: ${Hash}");
+        Payload.Print();
+    }
 }
