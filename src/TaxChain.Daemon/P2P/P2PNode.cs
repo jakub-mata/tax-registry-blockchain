@@ -299,7 +299,7 @@ public class P2PNode : IDisposable, INetworkManaging
             }
         }
         Console.WriteLine("Got the blockchain");
-        if (b.HasValue && (b.Value.Difficulty == blockMsg.Blockchain.Difficulty))
+        if (b.HasValue && (b.Value.Difficulty != blockMsg.Blockchain.Difficulty))
         {
             _logger.LogWarning("Difficulty of chain does not match");
             return;
