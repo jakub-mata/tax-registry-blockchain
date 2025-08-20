@@ -244,7 +244,7 @@ public class P2PNode : IDisposable, INetworkManaging
         }
         if (!b.HasValue)
         {
-            _logger.LogWarning("Blockchain provided by peer does not exist");
+            _logger.LogInformation("Blockchain provided by peer does not exist");
             return false;
         }
         Console.WriteLine("Found blockchain");
