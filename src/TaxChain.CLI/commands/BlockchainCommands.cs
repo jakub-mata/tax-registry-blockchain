@@ -37,8 +37,8 @@ internal sealed class AddBlockCommand : BaseAsyncCommand<AddBlockCommand.Setting
         string taxpayerId = AnsiConsole.Prompt(
             new TextPrompt<string>("Type your taxpayer id:")
         );
-        decimal amount = AnsiConsole.Prompt<decimal>(
-            new TextPrompt<decimal>("Write the amount:")
+        float amount = AnsiConsole.Prompt<float>(
+            new TextPrompt<float>("Write the amount:")
         );
         TaxType tt = SelectTaxType();
         var transaction = new Transaction(

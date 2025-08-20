@@ -19,7 +19,10 @@ public static class P2PUtils
     public static bool ValidateBlocks(List<Block> blocks, int difficulty)
     {
         if (blocks.Count == 0)
+        {
+            Console.WriteLine("Empty blocks");
             return false;
+        }
         if (blocks.Count == 1)
             return true;
 
@@ -31,11 +34,20 @@ public static class P2PUtils
             Block curr = blocks[i];
             Block next = blocks[i + 1];
             if (curr.Digest() != curr.Hash)
+            {
+                Console.WriteLine("Digest does not match current hash");
                 return false;
+            }
             if (!curr.Hash.StartsWith(zeroPrefix))
+            {
+                Console.WriteLine("Hash does not start with required prefix");
                 return false;
+            }
             if (curr.PreviousHash != next.Hash)
+            {
+                Console.WriteLine("Previous hash does not match hash");
                 return false;
+            }
         }
         return true;
     }

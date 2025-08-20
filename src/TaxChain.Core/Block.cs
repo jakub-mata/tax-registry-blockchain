@@ -76,9 +76,6 @@ public class Block
 
     public override string ToString()
     {
-        return PreviousHash
-            + Nonce.ToString()
-            + Payload.ToString()
-            + Timestamp.ToBinary().ToString();
+        return $"{PreviousHash}-{Nonce.ToString()}-{Payload.ToString()}-{Timestamp.Ticks.ToString()}";
     }
 }

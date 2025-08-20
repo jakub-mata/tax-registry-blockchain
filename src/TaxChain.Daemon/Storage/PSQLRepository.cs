@@ -40,7 +40,7 @@ public class PGSQLRepository : IBlockchainRepository
             @"CREATE TABLE IF NOT EXISTS chains (
                 id UUID PRIMARY KEY,
                 name TEXT NOT NULL,
-                reward INTEGER DEFAULT 0,
+                reward REAL DEFAULT 0,
                 difficulty INTEGER DEFAULT 1,
                 latest_block INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -61,14 +61,14 @@ public class PGSQLRepository : IBlockchainRepository
                 chain_id UUID REFERENCES chains(id) ON DELETE CASCADE,
                 block_id INTEGER REFERENCES blocks(id) ON DELETE CASCADE,
                 taxpayer_id TEXT NOT NULL,
-                amount DECIMAL(18,8) NOT NULL,
+                amount REAL NOT NULL,
                 tax_type TEXT NOT NULL
             );",
 
             @"CREATE TABLE IF NOT EXISTS pending_transactions (
                 id UUID PRIMARY KEY,
                 chain_id UUID REFERENCES chains(id) ON DELETE CASCADE,
-                amount DECIMAL(18,8) NOT NULL,
+                amount REAL NOT NULL,
                 taxpayer_id TEXT NOT NULL,
                 tax_type TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -196,7 +196,7 @@ public class PGSQLRepository : IBlockchainRepository
             {
                 Transaction trans = new Transaction();
                 trans.ID = lastReader.GetGuid(lastReader.GetOrdinal("id"));
-                trans.Amount = lastReader.GetDecimal(lastReader.GetOrdinal("amount"));
+                trans.Amount = lastReader.GetFloat(lastReader.GetOrdinal("amount"));
                 trans.TaxpayerId = lastReader.GetString(lastReader.GetOrdinal("taxpayer_id"));
                 trans.Type = Transaction.GetTaxTypeFromString(lastReader.GetString(lastReader.GetOrdinal("tax_type")));
                 transaction = trans;
@@ -513,7 +513,7 @@ public class PGSQLRepository : IBlockchainRepository
             return new Transaction(
                 reader.GetGuid(reader.GetOrdinal("id")),
                 reader.GetString(reader.GetOrdinal("taxpayer_id")),
-                reader.GetDecimal(reader.GetOrdinal("amount")),
+                reader.GetFloat(reader.GetOrdinal("amount")),
                 Transaction.GetTaxTypeFromString(reader.GetString(reader.GetOrdinal("tax_type")))
             );
         }
@@ -624,6 +624,7 @@ public class PGSQLRepository : IBlockchainRepository
             {
                 if (curr?.Digest() != curr?.Hash)
                 {
+                    Console.WriteLine($"Block: {curr!.ToString()}");
                     _logger.LogWarning($"Digest and hash differ");
                     return false;
                 }
@@ -674,7 +675,7 @@ public class PGSQLRepository : IBlockchainRepository
                 {
                     Transaction curr = new();
                     curr.ID = reader.GetGuid(reader.GetOrdinal("id"));
-                    curr.Amount = reader.GetDecimal(reader.GetOrdinal("amount"));
+                    curr.Amount = reader.GetFloat(reader.GetOrdinal("amount"));
                     curr.TaxpayerId = reader.GetString(reader.GetOrdinal("taxpayer_id"));
                     curr.Type = Transaction.GetTaxTypeFromString(reader.GetString(reader.GetOrdinal("tax_type")));
                     transactions.Add(curr);
@@ -694,6 +695,7 @@ public class PGSQLRepository : IBlockchainRepository
     {
         try
         {
+            Console.WriteLine($"Appended block: {block.ToString()}");
             using var conn = GetConnection();
             conn.Open();
             using var t = conn.BeginTransaction();

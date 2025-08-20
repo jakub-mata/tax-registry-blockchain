@@ -85,15 +85,7 @@ public class P2PNode : IDisposable, INetworkManaging
                 Console.WriteLine($"Sending chain info message");
                 await peer.SendAsync("ChainInfo", new ChainInfo(chainId, blockCount), ct);
 
-                // Wait for Blocks response
-                var msg = await peer.ReceiveAsync(ct);
-                Console.WriteLine("Received response");
-                if (msg?.Type == "Blocks")
-                {
-                    Console.WriteLine("Handling request");
-                    HandleBlocksRequest(msg);
-                    _logger.LogInformation("Successfully synced chain {ChainId}", chainId);
-                }
+                // Blocks response comes in HandlePeer
             }
             catch (Exception ex)
             {
@@ -192,6 +184,7 @@ public class P2PNode : IDisposable, INetworkManaging
                         await HandleChainInfoRequest(msg, peer, ct);
                         break;
                     case "Blocks":
+                        Console.WriteLine("Blocks response received");
                         HandleBlocksRequest(msg);
                         break;
                     case "PeerList":
@@ -287,7 +280,7 @@ public class P2PNode : IDisposable, INetworkManaging
             _logger.LogWarning("Received a 'Blocks' message with no blocks. Assuming an error on peer...");
             return;
         }
-
+        Console.WriteLine($"Got their block count: {blockMsg.ChainBlocks.Count}");
         bool ok = _repo.GetBlockchain(blockMsg.Blockchain.Id, out Blockchain? b);
         if (!ok)
         {
@@ -297,6 +290,7 @@ public class P2PNode : IDisposable, INetworkManaging
         if (!b.HasValue)
         {
             _logger.LogInformation("Blockchain provided by peer does not exist. Creating now...");
+            Console.WriteLine("Creating new blockchain");
             ok = _repo.Store(blockMsg.Blockchain);
             if (!ok)
             {
@@ -304,6 +298,7 @@ public class P2PNode : IDisposable, INetworkManaging
                 return;
             }
         }
+        Console.WriteLine("Got the blockchain");
         if (b.HasValue && (b.Value.Difficulty == blockMsg.Blockchain.Difficulty))
         {
             _logger.LogWarning("Difficulty of chain does not match");

@@ -12,7 +12,7 @@ public struct Transaction
 {
     public Guid ID { get; set; }
     public string TaxpayerId { get; set; }          // Tax ID or SSN
-    public decimal Amount { get; set; }             // Tax amount
+    public float Amount { get; set; }             // Tax amount
     public TaxType Type { get; set; }               // Type of tax, see TaxType
     public readonly string GetTaxType()
     {
@@ -49,7 +49,7 @@ public struct Transaction
 
     public Transaction(
         string taxpayerId,
-        decimal amount,
+        float amount,
         TaxType type
     )
     {
@@ -61,7 +61,7 @@ public struct Transaction
     public Transaction(
         Guid id,
         string taxpayerId,
-        decimal amount,
+        float amount,
         TaxType type
     )
     {
@@ -73,7 +73,7 @@ public struct Transaction
 
     public override string ToString()
     {
-        return $"{ID}{TaxpayerId}{Amount}";
+        return $"{ID}+{TaxpayerId}+{Amount}";
     }
 }
 public enum TaxType

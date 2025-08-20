@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -42,20 +43,21 @@ public class PeerConnection : IEquatable<PeerConnection>, IDisposable
         var bytes = Encoding.UTF8.GetBytes(json);
         var length = BitConverter.GetBytes(bytes.Length);
 
-        await _stream.WriteAsync(length, 0, length.Length, ct);
-        await _stream.WriteAsync(bytes, 0, bytes.Length, ct);
+        try
+        {
+            await _stream.WriteAsync(length, 0, length.Length, ct);
+            await _stream.WriteAsync(bytes, 0, bytes.Length, ct);
+        }
+        catch (IOException) { }
     }
 
     public async Task<P2PMessage?> ReceiveAsync(CancellationToken ct = default)
     {
         try
         {
-            Console.WriteLine("Received message! Reading async...");
             var lengthBuffer = new byte[4];
             int read = await _stream.ReadAsync(lengthBuffer, ct);
-            Console.WriteLine("Reading...");
             if (read == 0) return null;  // connection closed
-            Console.WriteLine("Finished reading...");
             int length = BitConverter.ToInt32(lengthBuffer);
             var buffer = new byte[length];
             await _stream.ReadExactlyAsync(buffer, ct);
