@@ -242,6 +242,7 @@ public class P2PNode : IDisposable, INetworkManaging
     private async Task<bool> HandleChainInfoRequest(P2PMessage msg, PeerConnection peer, CancellationToken ct)
     {
         var ci = msg.Deserialize<ChainInfo>();
+        Console.WriteLine("Deserialized chain info request");
         bool ok = _repo.GetBlockchain(ci.ChainId, out Blockchain? b);
         if (!ok)
         {
@@ -253,19 +254,21 @@ public class P2PNode : IDisposable, INetworkManaging
             _logger.LogWarning("Blockchain provided by peer does not exist");
             return false;
         }
+        Console.WriteLine("Found blockchain");
         ok = _repo.CountBlocks(ci.ChainId, out int blockCount);
         if (!ok || blockCount < ci.BlockCount)
         {
             _logger.LogInformation("Our blockchain is shorter, not sending any data...");
             return false;
         }
-
+        Console.WriteLine("Counted blocks");
         ok = _repo.Fetch(ci.ChainId, out List<Block> blocks);
         if (!ok)
         {
             _logger.LogError("Failed to fetch all blocks for peer");
             return false;
         }
+        Console.WriteLine("Sending 'blocks' response");
         await peer.SendAsync("Blocks", new Blocks(b.Value, blocks), ct);
         return true;
     }
