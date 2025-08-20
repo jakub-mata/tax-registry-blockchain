@@ -228,7 +228,7 @@ internal sealed class ConnectCommand : BaseAsyncCommand<ConnectCommand.Settings>
                 AnsiConsole.WriteLine($"Daemon's message: ${response.Message}");
                 return 1;
             }
-            AnsiConsole.MarkupLine($"[green]Connection to peer has been established![/]");
+            AnsiConsole.MarkupLine($"[green]Peer has been added to the network and will be checked periodically.[/]");
             return 0;
         }
         catch (Exception ex)
