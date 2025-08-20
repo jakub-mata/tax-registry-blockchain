@@ -249,7 +249,7 @@ public class P2PNode : IDisposable, INetworkManaging
         }
         Console.WriteLine("Found blockchain");
         ok = _repo.CountBlocks(ci.ChainId, out int blockCount);
-        if (!ok || blockCount < ci.BlockCount)
+        if (!ok || blockCount <= ci.BlockCount)
         {
             _logger.LogInformation("Our blockchain is shorter, not sending any data...");
             return false;
@@ -313,7 +313,7 @@ public class P2PNode : IDisposable, INetworkManaging
 
         ok = _repo.CountBlocks(blockMsg.Blockchain.Id, out int ourCount);
         Console.WriteLine("Counted our block count");
-        if (!ok || ourCount > blockMsg.ChainBlocks.Count)
+        if (!ok || ourCount >= blockMsg.ChainBlocks.Count)
         {
             _logger.LogInformation("No updating done, our chain is longer...");
             return;
