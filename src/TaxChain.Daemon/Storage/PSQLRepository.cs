@@ -907,6 +907,8 @@ public class PGSQLRepository : IBlockchainRepository
             if (curr == null)  // there should be at least the genesis block
                 return false;
             blocks.Add(curr);
+            if (curr.PreviousHash == "")
+                return true;
             while (true)
             {
                 curr = FindBlockByHash(chainId, curr.PreviousHash, connection);
@@ -957,15 +959,18 @@ public class PGSQLRepository : IBlockchainRepository
                     _logger.LogError("Failed to replace blocks");
                     return false;
                 }
-                bool ok = StoreTransaction(chainId, newId.Value, blocks[i].Payload, conn, transaction);
-                if (!ok)
+                if (i != blocks.Count - 1)
                 {
-                    _logger.LogError("Failed to store a transaction when replacing all blocks");
-                    return false;
+                    bool ok = StoreTransaction(chainId, newId.Value, blocks[i].Payload, conn, transaction);
+                    if (!ok)
+                    {
+                        _logger.LogError("Failed to store a transaction when replacing all blocks");
+                        return false;
+                    }
                 }
                 if (i == 0)
                 {
-                    ok = UpdateLatestBlock(chainId, newId, conn, transaction);
+                    bool ok = UpdateLatestBlock(chainId, newId, conn, transaction);
                     if (!ok)
                     {
                         _logger.LogError("Failed to update latest block when replacing all blocks");
@@ -975,7 +980,7 @@ public class PGSQLRepository : IBlockchainRepository
             }
             transaction.Commit();
             return true;
-            
+
         }
         catch (Exception ex)
         {
@@ -1014,6 +1019,8 @@ public class PGSQLRepository : IBlockchainRepository
             if (curr == null)
                 return false;
             ++count;
+            if (curr.PreviousHash == "")
+                return true;
             while (true)
             {
                 curr = FindBlockByHash(chainId, curr.PreviousHash, connection);
