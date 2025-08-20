@@ -50,10 +50,12 @@ public class PeerConnection : IEquatable<PeerConnection>, IDisposable
     {
         try
         {
+            Console.WriteLine("Received message! Reading async...");
             var lengthBuffer = new byte[4];
             int read = await _stream.ReadAsync(lengthBuffer, ct);
+            Console.WriteLine("Reading...");
             if (read == 0) return null;  // connection closed
-
+            Console.WriteLine("Finished reading...");
             int length = BitConverter.ToInt32(lengthBuffer);
             var buffer = new byte[length];
             await _stream.ReadExactlyAsync(buffer, ct);
