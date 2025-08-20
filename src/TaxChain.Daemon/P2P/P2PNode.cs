@@ -37,7 +37,7 @@ public class P2PNode : IDisposable, INetworkManaging
         Status = new SyncStatus { Success = true, DateTime = DateTime.UtcNow };
     }
 
-    public async Task StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default)
+    public void StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default)
     {
         _discoveryDelay = discoveryDelay;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -120,6 +120,7 @@ public class P2PNode : IDisposable, INetworkManaging
                     catch (Exception ex)
                     {
                         ok = false;
+                        _knownPeers.Remove(endpoint);
                         _logger.LogWarning("Failed to connect to {Endpoint}: {ex}", endpoint, ex.Message);
                     }
                 }

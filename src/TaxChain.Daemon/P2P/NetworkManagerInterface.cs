@@ -16,7 +16,7 @@ public interface INetworkManaging : IDisposable
     /// <param name="discoveryDelay">The time interval between automatic peer discovery.</param>
     /// <param name="ct">Cancellation token in case the network manager is to stopped.</param>
     /// <returns>Task</returns>
-    Task StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default);
+    void StartAsync(int port, int discoveryDelay = 30, CancellationToken ct = default);
     /// <summary>
     /// Adds a known peer to the P2P network.
     /// This method is used to manually add a peer to the network.

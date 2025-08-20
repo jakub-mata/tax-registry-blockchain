@@ -61,7 +61,7 @@ namespace TaxChain.Daemon.Services
             var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "4662";
             _port = int.Parse(port);
             var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "60";
-            await _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
+            _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
             _synchronizationTask = SyncLoop(60, cancellationToken);
             Program.VerboseMode = false;
