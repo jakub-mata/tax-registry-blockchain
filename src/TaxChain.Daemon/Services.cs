@@ -28,6 +28,7 @@ namespace TaxChain.Daemon.Services
         private readonly ILogger<ControlService> _logger;
         private int? _port;
         private DateTime? _startupTimestamp;
+        private Task? _synchronizationTask;
         private CancellationTokenSource _cancellationTokenSource = new();
         private CancellationTokenSource? _miningCts;
         private int _running;
@@ -62,7 +63,7 @@ namespace TaxChain.Daemon.Services
             var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "60";
             await _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
-            await SynchronizeOurChains(_cancellationTokenSource.Token);
+            _synchronizationTask = SyncLoop(60, cancellationToken);
             Program.VerboseMode = false;
         }
 
@@ -103,6 +104,26 @@ namespace TaxChain.Daemon.Services
                 await _networkManager.SyncChain(chain.Id, ct);
             }
             _logger.LogInformation("Finished syncing.");
+        }
+
+        private async Task SyncLoop(int delayInSec = 60, CancellationToken ct = default)
+        {
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    await SynchronizeOurChains(ct);
+                    await Task.Delay(TimeSpan.FromSeconds(delayInSec), ct);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Operation cancelled in discovery");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception in discovery: {ex}", ex);
+            }
         }
 
         private async void ListenForCommands()
