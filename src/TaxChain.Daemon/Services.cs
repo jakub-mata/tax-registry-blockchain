@@ -557,7 +557,6 @@ namespace TaxChain.Daemon.Services
                     _logger.LogInformation("Mined block stored. Sending reward...");
                     Transaction reward = new(taxpayerId, rewardAmount, TaxType.Reward);
                     Block rewardBlock = new(toMine.ChainId, toMine.Hash, reward);
-                    Console.WriteLine($"Reward block: {rewardBlock}");
                     rewardBlock.Mine(difficulty, token);
                     result = _blockchainRepository.AppendBlock(rewardBlock, true);
                     if (result != AppendResult.Success)

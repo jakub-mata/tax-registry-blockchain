@@ -624,7 +624,6 @@ public class PGSQLRepository : IBlockchainRepository
             {
                 if (curr?.Digest() != curr?.Hash)
                 {
-                    Console.WriteLine($"Block: {curr!.ToString()}");
                     _logger.LogWarning($"Digest and hash differ");
                     return false;
                 }
@@ -695,7 +694,6 @@ public class PGSQLRepository : IBlockchainRepository
     {
         try
         {
-            Console.WriteLine($"Appended block: {block.ToString()}");
             using var conn = GetConnection();
             conn.Open();
             using var t = conn.BeginTransaction();

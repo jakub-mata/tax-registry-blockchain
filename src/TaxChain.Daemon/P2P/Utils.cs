@@ -20,7 +20,6 @@ public static class P2PUtils
     {
         if (blocks.Count == 0)
         {
-            Console.WriteLine("Empty blocks");
             return false;
         }
         if (blocks.Count == 1)
@@ -35,17 +34,14 @@ public static class P2PUtils
             Block next = blocks[i + 1];
             if (curr.Digest() != curr.Hash)
             {
-                Console.WriteLine("Digest does not match current hash");
                 return false;
             }
             if (!curr.Hash.StartsWith(zeroPrefix))
             {
-                Console.WriteLine("Hash does not start with required prefix");
                 return false;
             }
             if (curr.PreviousHash != next.Hash)
             {
-                Console.WriteLine("Previous hash does not match hash");
                 return false;
             }
         }

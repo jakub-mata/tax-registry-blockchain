@@ -77,12 +77,10 @@ public class P2PNode : IDisposable, INetworkManaging
         {
             try
             {
-                Console.WriteLine($"Syncing chain {chainId} from peer {peer.PeerId}");
                 _logger.LogInformation("Syncing chain {ChainId} from peer {Peer}", chainId, peer.PeerId);
                 bool ok = _repo.CountBlocks(chainId, out int blockCount);
                 if (!ok)
                     throw new Exception("Failed to fetch blockchain count");
-                Console.WriteLine($"Sending chain info message");
                 await peer.SendAsync("ChainInfo", new ChainInfo(chainId, blockCount), ct);
 
                 // Blocks response comes in HandlePeer
@@ -144,7 +142,6 @@ public class P2PNode : IDisposable, INetworkManaging
         {
             var client = await _listener!.AcceptTcpClientAsync(ct);
             var peer = new PeerConnection(client);
-            Console.WriteLine("Received a request");
             try
             {
                 await peer.PerformServerHandshake(_localId, ct);
@@ -181,11 +178,9 @@ public class P2PNode : IDisposable, INetworkManaging
                 switch (msg.Type)
                 {
                     case "ChainInfo":
-                        Console.WriteLine("received chaininfo request");
                         await HandleChainInfoRequest(msg, peer, ct);
                         break;
                     case "Blocks":
-                        Console.WriteLine("Blocks response received");
                         HandleBlocksRequest(msg);
                         break;
                     case "PeerList":
@@ -236,7 +231,6 @@ public class P2PNode : IDisposable, INetworkManaging
     private async Task<bool> HandleChainInfoRequest(P2PMessage msg, PeerConnection peer, CancellationToken ct)
     {
         var ci = msg.Deserialize<ChainInfo>();
-        Console.WriteLine("Deserialized chain info request");
         bool ok = _repo.GetBlockchain(ci.ChainId, out Blockchain? b);
         if (!ok)
         {
@@ -248,21 +242,18 @@ public class P2PNode : IDisposable, INetworkManaging
             _logger.LogInformation("Blockchain provided by peer does not exist");
             return false;
         }
-        Console.WriteLine("Found blockchain");
         ok = _repo.CountBlocks(ci.ChainId, out int blockCount);
         if (!ok || blockCount <= ci.BlockCount)
         {
             _logger.LogInformation("Our blockchain is shorter, not sending any data...");
             return false;
         }
-        Console.WriteLine("Counted blocks");
         ok = _repo.Fetch(ci.ChainId, out List<Block> blocks);
         if (!ok)
         {
             _logger.LogError("Failed to fetch all blocks for peer");
             return false;
         }
-        Console.WriteLine("Sending 'blocks' response");
         await peer.SendAsync("Blocks", new Blocks(b.Value, blocks), ct);
         return true;
     }
@@ -281,7 +272,6 @@ public class P2PNode : IDisposable, INetworkManaging
             _logger.LogWarning("Received a 'Blocks' message with no blocks. Assuming an error on peer...");
             return;
         }
-        Console.WriteLine($"Got their block count: {blockMsg.ChainBlocks.Count}");
         bool ok = _repo.GetBlockchain(blockMsg.Blockchain.Id, out Blockchain? b);
         if (!ok)
         {
@@ -291,7 +281,6 @@ public class P2PNode : IDisposable, INetworkManaging
         if (!b.HasValue)
         {
             _logger.LogInformation("Blockchain provided by peer does not exist. Creating now...");
-            Console.WriteLine("Creating new blockchain");
             ok = _repo.Store(blockMsg.Blockchain);
             if (!ok)
             {
@@ -299,7 +288,6 @@ public class P2PNode : IDisposable, INetworkManaging
                 return;
             }
         }
-        Console.WriteLine("Got the blockchain");
         if (b.HasValue && (b.Value.Difficulty != blockMsg.Blockchain.Difficulty))
         {
             _logger.LogWarning("Difficulty of chain does not match");
@@ -313,13 +301,11 @@ public class P2PNode : IDisposable, INetworkManaging
         }
 
         ok = _repo.CountBlocks(blockMsg.Blockchain.Id, out int ourCount);
-        Console.WriteLine("Counted our block count");
         if (!ok || ourCount >= blockMsg.ChainBlocks.Count)
         {
             _logger.LogInformation("No updating done, our chain is longer...");
             return;
         }
-        Console.WriteLine("Replacing blocks");
         ok = _repo.ReplaceChainBlocks(blockMsg.Blockchain.Id, blockMsg.ChainBlocks);
         if (!ok)
         {
