@@ -10,9 +10,21 @@ namespace TaxChain.core;
 /// </summary>
 public struct Transaction
 {
+    /// <summary>
+    /// A unique transaction identifier
+    /// </summary>
     public Guid ID { get; set; }
+    /// <summary>
+    /// Identification of a taxpayer
+    /// </summary>
     public string TaxpayerId { get; set; }          // Tax ID or SSN
+    /// <summary>
+    /// The monetary amount relating to the tax payment
+    /// </summary>
     public float Amount { get; set; }             // Tax amount
+    /// <summary>
+    /// The type of tax transaction
+    /// </summary>
     public TaxType Type { get; set; }               // Type of tax, see TaxType
     public readonly string GetTaxType()
     {

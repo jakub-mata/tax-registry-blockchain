@@ -9,9 +9,21 @@ namespace TaxChain.core;
 /// </summary>
 public struct Blockchain
 {
+    /// <summary>
+    /// A unique blockchain identifier
+    /// </summary>
     public Guid Id { get; set; }
+    /// <summary>
+    /// User-defined blockchain name, for easier manipulation
+    /// </summary>
     public string Name { get; set; }
+    /// <summary>
+    /// The amount returned to a successful miner as a reward.
+    /// </summary>
     public float RewardAmount { get; set; }
+    /// <summary>
+    /// The amount of zeros in a hash. Made for proof-of-work
+    /// </summary>
     public int Difficulty { get; set; }
 
     public Blockchain(Guid id, string name, float rewardAmount, int difficulty)

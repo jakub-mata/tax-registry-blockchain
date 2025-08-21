@@ -34,11 +34,31 @@ public class Block
         Timestamp = timestamp;
         Payload = payload;
     }
+    /// <summary>
+    /// A unique Block identifier
+    /// </summary>
     public Guid ChainId { get; set; }
+    /// <summary>
+    /// The hash of the previous block in the blockchain
+    /// </summary>
     public string PreviousHash { get; set; }
+    /// <summary>
+    /// The hash of the block
+    /// </summary>
     public string Hash { get; set; }
+    /// <summary>
+    /// The value of nonce makes mining possible - mining stops once
+    /// hash starts with a certain amount of zeros, nonce keeps increasing
+    /// until it does.
+    /// </summary>
     public long Nonce { get; set; }
+    /// <summary>
+    /// The time of creation.
+    /// </summary>
     public DateTime Timestamp { get; set; }
+    /// <summary>
+    /// The transaction included within Block, actual payload.
+    /// </summary>
     public Transaction Payload { get; set; }
 
     /// <summary>
