@@ -8,6 +8,10 @@ Users leverage the CLI client to communicate with a daemon. This daemon, running
 
 The daemon does not have to be running continuously. All the blockchain information is stored locally in a durable storage (e.g. PostgreSQL), which is accessed anytime the daemon boots up. If no such storage exists, the daemon sets up a new one. Furthermore, the daemon automatically synchronizes its blockchain information with the network (the interval for synchronization can be configured) and updates this local storage.
 
+Each blockchain is defined by its unique ID. Users provide this ID when interacting with a particular blockchain (see [example usage](#example-usage) below). All locally stored blockchains are periodically synchronized with the network - the daemon sends a request for each blockchain to all peers in the network. If any of the peers possess the blockchain as well and theirs is longer, they send back their version of the blockchain.
+
+Upon start-up, they are no peers in the network. At least one peer has to be added manually with the `connect` command. Then peer exhange will occur in pre-defined intervals, during which peers share their network information. This helps other nodes in the network extend their peer lists, which spreads the size of the network.
+
 ## Installation
 
 Run `git clone` on this repository.  
@@ -59,7 +63,7 @@ local    all       postgres                   md5
 
 ## Usage
 
-The base command is
+Navigate to the base directory of the project. The base command is
 ```cs
 dotnet run --project ./src/TaxChain.CLI/TaxChain.csproj *CLI arguments*
 ```
@@ -84,11 +88,11 @@ dotnet run --project ./src/TaxChain.CLI/TaxChain.csproj *CLI arguments*
 The base command for this type of commands is 
 ```
 dotnet run --project ./src/TaxChain.CLI/TaxChain.csproj blockchain <BLOCKCHAIN_ID>
-``` 
+```
 All arguments in this section can be postfixed with the `--verbose` option to display more logging.
 
 - `sync`
-    - Synchronizes all locally stored blockchains against the network. The conflict resolution is straightforward (and not that safe - again, this project is not meant for real administation): the longest valid blockchain is the correct one. The definition of a valid blockchain is described lower under the `verify` command.
+    - Synchronizes all locally stored blockchains against the network. Note that this command is technically unnecessary as equivalent synchronization occurs in predefined intervals. The conflict resolution is straightforward (and not that safe - again, this project is not meant for real administation): the longest valid blockchain is the correct one. The definition of a valid blockchain is described lower under the `verify` command.
 
 - `fetch -c|-chain <CHAIN_ID>`
     - Fetches the particular blockchain from the network. If it does not exist in the local storage, it gets stored. If it exists locally, the local copy is compared against the ones coming from the network. For resolution, check the `sync` command.
@@ -121,9 +125,10 @@ The base command for this type of commands is `dotnet run --project ./src/TaxCha
 - `remove`
     - Removes the blockchain from the local storage, together with all blocks and transactions related.
 
-- `mine`
+- `mine -t <TAXPAYER_ID>`
     - Starts mining the oldest pending transaction. The mined transaction gets appended to the blockchain and is considered valid. If a transaction gets 'added' through `add` but no `mine` command is run, the transaction is never added to the blockchain.
     - **Only one** transaction can be mined at a time. Check the [status command](#daemon-commands) to verify whether the daemon is currently mining.
+    - `-t` option specifies the taxpayer who's responsible for mining and who will be assigned a mining reward after a successful mining attempt. The reward amount is set during the creation of the blockchain, see the `create` command above.
 
 - `info`
     - Retrieves details about the blockchain and displays it.
@@ -132,6 +137,25 @@ The base command for this type of commands is `dotnet run --project ./src/TaxCha
     - Attempts to validate the blockchain by going through all its blocks. For a block to be valid, its hash has to be recomputed in place and match the stored value, its hash has to start with a certain amount of zeros (see [difficulty]() above), and its previous hash has to match the hash of its nearest previous block.
     A blockchain is valid when all its blocks are valid.
 
+### Tax transactions
+
+The current interface version of tax transactions includes the following information. Users are able to specify these values during the `add` command.
+```
+Transaction {
+    taxpayer_id string,
+    amount float,
+    TaxType type
+}
+
+TaxType {
+    income,
+    dividence,
+    property,
+    consumption,
+    tariff,
+    reward
+}
+```
 
 ### Example usage
 
