@@ -94,7 +94,7 @@ All arguments in this section can be postfixed with the `--verbose` option to di
 - `sync`
     - Synchronizes all locally stored blockchains against the network. Note that this command is technically unnecessary as equivalent synchronization occurs in predefined intervals. The conflict resolution is straightforward (and not that safe - again, this project is not meant for real administation): the longest valid blockchain is the correct one. The definition of a valid blockchain is described lower under the `verify` command.
 
-- `fetch -c|-chain <CHAIN_ID>`
+- `fetch --chain <CHAIN_ID>`
     - Fetches the particular blockchain from the network. If it does not exist in the local storage, it gets stored. If it exists locally, the local copy is compared against the ones coming from the network. For resolution, check the `sync` command.
 
 - `create`
@@ -125,7 +125,7 @@ The base command for this type of commands is `dotnet run --project ./src/TaxCha
 - `remove`
     - Removes the blockchain from the local storage, together with all blocks and transactions related.
 
-- `mine -t <TAXPAYER_ID>`
+- `mine -t|--taxpayer-id <TAXPAYER_ID>`
     - Starts mining the oldest pending transaction. The mined transaction gets appended to the blockchain and is considered valid. If a transaction gets 'added' through `add` but no `mine` command is run, the transaction is never added to the blockchain.
     - **Only one** transaction can be mined at a time. Check the [status command](#daemon-commands) to verify whether the daemon is currently mining.
     - `-t` option specifies the taxpayer who's responsible for mining and who will be assigned a mining reward after a successful mining attempt. The reward amount is set during the creation of the blockchain, see the `create` command above.

@@ -133,7 +133,7 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
 {
     public class Settings : VerboseSettings
     {
-        [CommandOption("-c|--chain <CHAIN_ID>")]
+        [CommandOption("--chain <CHAIN_ID>")]
         public string? ChainId { get; set; }
     }
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
