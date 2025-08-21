@@ -10,7 +10,14 @@ using System.Collections.Generic;
 /// </summary>
 public class ControlRequest
 {
+    /// <summary>
+    /// A command to be run by the daemon, e.g "add", "fetch",...
+    /// </summary>
     public string Command { get; set; } = string.Empty;
+    /// <summary>
+    /// Optional parameters needed for certain commands, e.g. ID of 
+    /// a blockchain, verbose flag,...
+    /// </summary>
     public Dictionary<string, object>? Parameters { get; set; }
 }
 
@@ -21,8 +28,17 @@ public class ControlRequest
 /// </summary>
 public class ControlResponse
 {
+    /// <summary>
+    /// Signifies daemon's success of the requested operation
+    /// </summary>
     public bool Success { get; set; }
+    /// <summary>
+    /// Daemon's message to the client. Important when success is set to false
+    /// </summary>
     public string Message { get; set; } = string.Empty;
+    /// <summary>
+    /// Optional requested data
+    /// </summary>
     public object? Data { get; set; }
 }
 

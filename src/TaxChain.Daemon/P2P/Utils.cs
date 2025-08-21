@@ -48,4 +48,7 @@ public static class P2PUtils
         return true;
     }
 }
+/// <summary>
+/// Represents the synchronization status of the daemon with the network.
+/// </summary>
 public record struct SyncStatus { public bool Success { get; set; } public DateTime DateTime { get; set; } };

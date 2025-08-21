@@ -47,6 +47,12 @@ namespace TaxChain.Daemon.Services
             _running = 0;
         }
 
+        /// <summary>
+        /// Starts the control service, initializing the storage and networking components,
+        /// and begins listening for commands from clients.
+        /// </summary>
+        /// <param name="cancellationToken">Cancelation token in case of graceful shutdown.</param>
+        /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _startupTimestamp = DateTime.Now;
@@ -66,7 +72,13 @@ namespace TaxChain.Daemon.Services
             _synchronizationTask = SyncLoop(60, cancellationToken);
             Program.VerboseMode = false;
         }
-
+        /// <summary>
+        /// Stops the control service, cancelling any ongoing operations,
+        /// disposing of the network manager, and waiting for the listening thread to finish.
+        /// This method ensures a clean shutdown of the daemon.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token in case of graceful shutdown.</param>
+        /// <returns></returns>
         public Task StopAsync(CancellationToken cancellationToken)
         {
             CancelMining();

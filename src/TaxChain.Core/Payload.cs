@@ -93,6 +93,9 @@ public struct Transaction
         Console.WriteLine(ToString());
     }
 }
+/// <summary>
+/// Enumerates various type of tax transactions
+/// </summary>
 public enum TaxType
 {
     [Description("income")]

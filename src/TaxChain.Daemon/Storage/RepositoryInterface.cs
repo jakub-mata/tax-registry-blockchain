@@ -103,6 +103,10 @@ public interface IBlockchainRepository
     public bool CountBlocks(Guid chainId, out int count);
 }
 
+/// <summary>
+/// Represents the result of an attempt to append a block to a blockchain.
+/// It indicates whether the operation was successful and provides context for any failure.
+/// </summary>
 public enum AppendResult
 {
     Success,
