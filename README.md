@@ -30,36 +30,20 @@ The current version is only supported on Linux.
 ## App setup
 The application is set up using a `.env` file. Navigate to the project's base directory, go to `./src/TaxChain.Daemon` and create a new `.env` file here. Let's set it up to contain this information:
 ```.env
-TAXCHAIN_DB_HOST=postgres
-TAXCHAIN_DB_PORT=5432  #Default port for PostgreSQL
-TAXCHAIN_DB_USER=postgres
-TAXCHAIN_DB_PASSWORD=postgres
-TAXCHAIN_DB_NAME=taxchains
-TAXCHAIN_ADMIN_DB=Host=localhost;Username=postgres;Password=postgres;Database=postgres
-RECEIVER_PORT=4662  #The port for listening for incoming requests
-DISCOVERY_INTERVAL=30  #The time interval of peer discovery in our network
-```
-We mostly have to configure our database connection. Make sure you're correctly setting up TAXCHAIN_ADMIN_DB: the administrator's credentials for accessing PostgreSQL - the app uses it for creating a new database (defined by TAXCHAIN_DB_USER, TAXCHAIN_DB_PASSWORD, and TAXCHAIN_DB_NAME) if it does not exist yet. If unsure about the setup, use the values displayed above, only changing TAXCHAIN_ADMIN_DB to match your own credentials.
+RECEIVER_PORT=4662  // The listening port for incoming messages on the blockchain network
+DISCOVERY_INTERVAL=60  // The time interval for automatic synchronization
+TAXCHAIN_DB_HOST=localhost
+TAXCHAIN_DB_PORT=5432
+TAXCHAIN_DB_USER=chain_admin  // A postgres user with CREATE_DB priviledges
+TAXCHAIN_DB_PASSWORD=testpass // The password to that user
+TAXCHAIN_DB_NAME=taxchain  // The desired name for the database
 
-> **Warning**:
-You may encounter an issue with peer authentication. By default, postgresql uses peer authentication for the postgres superuser. We will have to switch to `md5` authentication.
-> First, make sure you know your postgres password. If you don't, update it using 
 ```
-sudo -u postgres psql
-ALTER USER postgres PASSWORD 'postgres';
-\q
+We mostly have to configure our database connection. We recommend creating a new dedicated user for the application. To do this, run the following command inside postgres (replace placeholders and use those values in the `.env` file):
 ```
->You will use this password in `.env`.
-Please, find your hba_file (e.g. by running `sudo -u postgres psql -c 'SHOW hba_file';`) and make sure that 
+CREATE USER *user-name* WITH PASSWORD '*password*' CREATE_DB;
 ```
-local    all       postgres                   peer
-```
-> is changed to
-```
-local    all       postgres                   md5
-```
-> Run `sudo systemctl restart postgresql`. Now we have our DB setup ready.
-
+However, if you already have a user with CREATE_DB priviledges, you can use it. We need those privilidges to set up the database if it does not exist yet.
 
 ## Usage
 
