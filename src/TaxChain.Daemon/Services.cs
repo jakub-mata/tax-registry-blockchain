@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Globalization;
 using System.Reflection;
+using Microsoft.Extensions.Configuration;
 
 namespace TaxChain.Daemon.Services
 {
@@ -26,6 +27,7 @@ namespace TaxChain.Daemon.Services
         private readonly INetworkManaging _networkManager;
         private readonly IHostApplicationLifetime _applicationLifetime;
         private readonly ILogger<ControlService> _logger;
+        private readonly IConfiguration _config;
         private int? _port;
         private DateTime? _startupTimestamp;
         private Task? _synchronizationTask;
@@ -38,12 +40,14 @@ namespace TaxChain.Daemon.Services
             INetworkManaging networkManager,
             IBlockchainRepository blockchainRepository,
             IHostApplicationLifetime applicationLifetime,
-            ILogger<ControlService> logger)
+            ILogger<ControlService> logger,
+            IConfiguration config)
         {
             _networkManager = networkManager;
             _blockchainRepository = blockchainRepository;
             _applicationLifetime = applicationLifetime;
             _logger = logger;
+            _config = config;
             _running = 0;
         }
 
@@ -55,6 +59,9 @@ namespace TaxChain.Daemon.Services
         /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            var port = _config["RECEIVER_PORT"] ?? throw new Exception("Receiver port not in config");
+            _port = int.Parse(port);
+            var discoveryInterval = _config["DISCOVERY_INTERVAL"] ?? throw new Exception("Dicovery interval not in config");
             _startupTimestamp = DateTime.Now;
             _listeningThread = new Thread(ListenForCommands);
             _listeningThread.IsBackground = false; // Keep thread alive
@@ -64,10 +71,7 @@ namespace TaxChain.Daemon.Services
             _blockchainRepository.Initialize();
             _logger.LogInformation("Storage successfully initialized");
             _logger.LogInformation("Booting up networking...");
-            var port = Environment.GetEnvironmentVariable("RECEIVER_PORT") ?? "4662";
-            _port = int.Parse(port);
-            var discoveryInterval = Environment.GetEnvironmentVariable("DISCOVERY_INTERVAL") ?? "60";
-            _networkManager.StartAsync(int.Parse(port), int.Parse(discoveryInterval), cancellationToken);
+            _networkManager.StartAsync(_port.Value, int.Parse(discoveryInterval), cancellationToken);
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
             _synchronizationTask = SyncLoop(60, cancellationToken);
             Program.VerboseMode = false;

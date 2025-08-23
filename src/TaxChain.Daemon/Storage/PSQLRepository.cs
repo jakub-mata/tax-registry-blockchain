@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using TaxChain.core;
@@ -9,25 +10,26 @@ namespace TaxChain.Daemon.Storage;
 public class PGSQLRepository : IBlockchainRepository
 {
     private readonly string _connectionString;
+    private readonly string _adminConnectionString;
     private readonly string _databaseName;
     private readonly ILogger<PGSQLRepository> _logger;
-    public PGSQLRepository(ILogger<PGSQLRepository> logger)
+    public PGSQLRepository(ILogger<PGSQLRepository> logger, IConfiguration config)
     {
         _logger = logger;
         // Load configuration from environment variables
-        var host = Environment.GetEnvironmentVariable("TAXCHAIN_DB_HOST") ?? "localhost";
-        var port = Environment.GetEnvironmentVariable("TAXCHAIN_DB_PORT") ?? "5432";
-        var username = Environment.GetEnvironmentVariable("TAXCHAIN_DB_USER") ?? "postgres";
-        var password = Environment.GetEnvironmentVariable("TAXCHAIN_DB_PASSWORD") ?? "postgres";
-        _databaseName = Environment.GetEnvironmentVariable("TAXCHAIN_DB_NAME") ?? "taxchain";
+        var host = config["TAXCHAIN_DB_HOST"] ?? "localhost";
+        var port = config["TAXCHAIN_DB_PORT"] ?? "5432";
+        var username = config["TAXCHAIN_DB_USER"] ?? "postgres";
+        var password = config["TAXCHAIN_DB_PASSWORD"] ?? "postgres";
+        _databaseName = config["TAXCHAIN_DB_NAME"] ?? "taxchain";
 
+        _adminConnectionString = $"Host={host};Port={port};Username={username};Password={password};Database=postgres;Include Error Detail=true";
         _connectionString = $"Host={host};Port={port};Username={username};Password={password};Database={_databaseName};Include Error Detail=true";
     }
 
     public void Initialize()
     {
-        var adminConnStr = Environment.GetEnvironmentVariable("TAXCHAIN_ADMIN_DB") ?? "Host=localhost;Username=postgres;Password=postgres;Database=postgres";
-        EnsureDatabaseExists(adminConnStr);
+        EnsureDatabaseExists(_adminConnectionString);
         CreateTables();
     }
 
