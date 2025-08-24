@@ -85,7 +85,7 @@ public struct Transaction
 
     public override string ToString()
     {
-        return $"{ID}+{TaxpayerId}+{Amount}";
+        return $"{ID}+{TaxpayerId}+{Amount.ToString("0.0000")}";
     }
 
     public void Print()
