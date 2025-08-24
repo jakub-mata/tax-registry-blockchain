@@ -18,7 +18,7 @@ Run `git clone` on this repository.
 
 ## Requirements
 
-The current version is only supported on Linux.
+The current version is supported on all devices where the .NET runtime can run.
 
 - .NET SDK version 8 or higher
     - check [.NET docs](https://learn.microsoft.com/en-us/dotnet/core/sdk) for more info
