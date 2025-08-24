@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 
 namespace TaxChain.core;
@@ -85,7 +86,7 @@ public struct Transaction
 
     public override string ToString()
     {
-        return $"{ID}+{TaxpayerId}+{Amount.ToString("0.0000")}";
+        return $"{ID.ToString("D", CultureInfo.InvariantCulture)}+{TaxpayerId}+{Amount.ToString("0.0000",CultureInfo.InvariantCulture)}";
     }
 
     public void Print()

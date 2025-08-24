@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -96,7 +97,7 @@ public class Block
 
     public override string ToString()
     {
-        return $"{PreviousHash}-{Nonce.ToString()}-{Payload.ToString()}-{Timestamp.Ticks.ToString()}";
+        return $"{PreviousHash}-{Nonce.ToString(CultureInfo.InvariantCulture)}-{Payload.ToString()}-{Timestamp.Ticks.ToString(CultureInfo.InvariantCulture)}";
     }
 
     public void Print()
