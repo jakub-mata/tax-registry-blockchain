@@ -161,7 +161,7 @@ internal sealed class FetchCommand : BaseAsyncCommand<FetchCommand.Settings>
                 AnsiConsole.WriteLine($"Daemon's message: {response.Message}");
                 return 1;
             }
-            AnsiConsole.MarkupLine($"[green]Taxchain {settings.ChainId} fetched successfully.[/]");
+            AnsiConsole.MarkupLine($"[green]Taxchain {settings.ChainId} requested successfully.[/]");
             if (response.Data != null)
             {
                 Blockchain b = (Blockchain)response.Data;
