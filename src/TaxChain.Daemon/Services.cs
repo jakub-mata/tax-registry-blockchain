@@ -57,7 +57,7 @@ namespace TaxChain.Daemon.Services
         /// </summary>
         /// <param name="cancellationToken">Cancelation token in case of graceful shutdown.</param>
         /// <returns></returns>
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public Task StartAsync(CancellationToken cancellationToken)
         {
             var port = _config["RECEIVER_PORT"] ?? throw new Exception("Receiver port not in config");
             _port = int.Parse(port);
@@ -75,6 +75,7 @@ namespace TaxChain.Daemon.Services
             _logger.LogInformation("Networking set up successfully, starting chain synchronization...");
             _synchronizationTask = SyncLoop(60, cancellationToken);
             Program.VerboseMode = false;
+            return Task.CompletedTask;
         }
         /// <summary>
         /// Stops the control service, cancelling any ongoing operations,
